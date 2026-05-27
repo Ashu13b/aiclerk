@@ -1,2 +1,0 @@
-[console_scripts]
-aiclerk = aiclerk.cli:cli
