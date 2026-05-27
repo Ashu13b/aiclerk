@@ -1,0 +1,63 @@
+{
+  "vault_type": {
+    "type": "string",
+    "description": "Destination: 'ServiceRecord', 'ProfessionalOutput', or 'KnowledgeBase'."
+  },
+  "scope": {
+    "type": "integer",
+    "description": "Relevance tier: 1 (Self), 2 (Family/Assets), 3 (Organization), 4 (General), 5 (Unrelated)."
+  },
+  "relevance_intent": {
+    "type": "string",
+    "description": "Why was this document saved? (e.g., 'Contains precedent for SR appointment')."
+  },
+  "primary_subject": {
+    "type": "string",
+    "description": "The actual PERSON'S NAME (in English)."
+  },
+  "professional_tags": {
+    "type": "array",
+    "items": { "type": "string" },
+    "description": "Domain-level tags: doctor, specialist, faculty, etc."
+  },
+  "action_type": {
+    "type": "string",
+    "description": "Administrative nature: application, office-order, certificate, receipt, roster."
+  },
+  "naming_tag": {
+    "type": "string",
+    "description": "Concise, high-density slug for the filename (e.g., 'id-digital-doctor', 'GA55')."
+  },
+  "include_location": {
+    "type": "boolean",
+    "description": "True if the location/city is vital to the document's identity."
+  },
+  "location": {
+    "type": "string",
+    "description": "The institution or place (e.g., GMC Nagaur, RajMES)."
+  },
+  "location_delta": {
+    "type": "string",
+    "description": "The specific city (e.g., Jaipur, Rajgarh)."
+  },
+  "is_list": {
+    "type": "boolean",
+    "description": "True if multi-person table requiring manual indexing."
+  },
+  "assets": {
+    "type": "array",
+    "items": { "type": "string" },
+    "description": "Specific identifiers found: Vehicle Nos (RJ23...), PAN, Roll Nos."
+  },
+  "metadata": {
+    "reference_number": {
+      "type": "string",
+      "description": "Order number or File ID."
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Primary document date found in text/footer."
+    }
+  }
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiclerk"
+version = "0.9.0"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "PyMuPDF",
+    "Pillow",
+]
+
+[project.scripts]
+aiclerk = "aiclerk.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aiclerk*"]

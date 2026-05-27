@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+aiclerk/__init__.py
+aiclerk/cli.py
+aiclerk/config.py
+aiclerk/core.py
+aiclerk/data.py
+aiclerk.egg-info/PKG-INFO
+aiclerk.egg-info/SOURCES.txt
+aiclerk.egg-info/dependency_links.txt
+aiclerk.egg-info/entry_points.txt
+aiclerk.egg-info/requires.txt
+aiclerk.egg-info/top_level.txt

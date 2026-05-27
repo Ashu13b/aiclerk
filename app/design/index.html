@@ -1,0 +1,2851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MedMCQ — MBBS Question Bank</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #04060f; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
+  @keyframes ecgPulse {
+    0%,100% { opacity:.5; transform:scaleY(1); }
+    50%      { opacity:1; transform:scaleY(1.3); }
+  }
+  @keyframes glowPulse {
+    0%,100% { box-shadow: 0 0 8px 0px #00e5a044; }
+    50%      { box-shadow: 0 0 22px 4px #00e5a088; }
+  }
+  @keyframes cyanGlow {
+    0%,100% { box-shadow: 0 0 8px 0px #00cfff44; }
+    50%      { box-shadow: 0 0 20px 4px #00cfff88; }
+  }
+  @keyframes redGlow {
+    0%,100% { box-shadow: 0 0 8px 0px #ff3d5a44; }
+    50%      { box-shadow: 0 0 20px 4px #ff3d5a88; }
+  }
+  @keyframes scanline {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 100px; }
+  }
+  .glow-green { animation: glowPulse 2.4s ease-in-out infinite; }
+  .glow-cyan  { animation: cyanGlow  2s ease-in-out infinite; }
+  .glow-red   { animation: redGlow   1.8s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#00e5a0",
+  "darkMode": true,
+  "studentName": "Dr. Ashish",
+  "showStreaks": true,
+  "fontSize": 15
+}/*EDITMODE-END*/;
+
+// ─── Data ───────────────────────────────────────────────────────────────────
+
+const SUBJECTS = [
+  { id: "anatomy",  name: "Anatomy",       icon: "🦴", color: "#ff3d5a", total: 420, done: 210 },
+  { id: "physio",   name: "Physiology",    icon: "🫀", color: "#00cfff", total: 380, done: 290 },
+  { id: "biochem",  name: "Biochemistry",  icon: "🧬", color: "#00e5a0", total: 310, done: 120 },
+  { id: "path",     name: "Pathology",     icon: "🔬", color: "#a78bfa", total: 450, done: 330 },
+  { id: "pharma",   name: "Pharmacology",  icon: "💊", color: "#ffb020", total: 360, done: 180 },
+  { id: "micro",    name: "Microbiology",  icon: "🦠", color: "#ff6eb4", total: 290, done: 95  },
+  { id: "forensic", name: "Forensic Med",  icon: "⚖️", color: "#c084fc", total: 200, done: 60  },
+  { id: "psm",      name: "Community Med", icon: "🏥", color: "#00e5a0", total: 340, done: 170 },
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: "Priya S.", score: 9820, badge: "🥇", subject: "Pathology", streak: 42 },
+  { rank: 2, name: "Rohan K.", score: 9640, badge: "🥈", subject: "Pharmacology", streak: 38 },
+  { rank: 3, name: "Sneha M.", score: 9410, badge: "🥉", subject: "Anatomy", streak: 35 },
+  { rank: 4, name: "Dr. Aryan", score: 9210, badge: "⭐", subject: "Physiology", streak: 29, isMe: true },
+  { rank: 5, name: "Aditya R.", score: 8990, badge: "⭐", subject: "Biochemistry", streak: 24 },
+  { rank: 6, name: "Kavya T.", score: 8760, badge: "⭐", subject: "Microbiology", streak: 20 },
+  { rank: 7, name: "Mihir P.", score: 8540, badge: "⭐", subject: "Surgery", streak: 18 },
+  { rank: 8, name: "Dia N.", score: 8200, badge: "⭐", subject: "OBG", streak: 15 },
+];
+
+const QUESTIONS = [
+  {
+    id: 1, subject: "Anatomy", topic: "Upper Limb", difficulty: "medium",
+    q: "Which nerve is most commonly injured in a mid-shaft fracture of the humerus?",
+    options: ["Median nerve", "Radial nerve", "Ulnar nerve", "Musculocutaneous nerve"],
+    answer: 1,
+    explanation: "The radial nerve winds around the posterior aspect of the humerus in the spiral groove and is vulnerable in mid-shaft fractures."
+  },
+  {
+    id: 2, subject: "Physiology", topic: "CVS", difficulty: "easy",
+    q: "The 'pacemaker' of the heart is the:",
+    options: ["AV node", "Bundle of His", "SA node", "Purkinje fibers"],
+    answer: 2,
+    explanation: "The SA node fires at 60–100 bpm and acts as the dominant pacemaker due to its fastest intrinsic rate."
+  },
+  {
+    id: 3, subject: "Pharmacology", topic: "ANS", difficulty: "hard",
+    q: "Which beta-blocker is cardioselective AND has intrinsic sympathomimetic activity (ISA)?",
+    options: ["Propranolol", "Metoprolol", "Acebutolol", "Atenolol"],
+    answer: 2,
+    explanation: "Acebutolol is β1-selective and has ISA, making it less likely to cause bradycardia at rest."
+  },
+  {
+    id: 4, subject: "Pathology", topic: "Inflammation", difficulty: "medium",
+    q: "What is the most common type of necrosis seen in tuberculosis?",
+    options: ["Coagulative", "Liquefactive", "Caseous", "Fat necrosis"],
+    answer: 2,
+    explanation: "Caseous necrosis is characteristic of tuberculosis — it has a cheese-like gross appearance with structureless debris."
+  },
+  {
+    id: 5, subject: "Biochemistry", topic: "Enzymes", difficulty: "hard",
+    q: "Which enzyme is inhibited by allopurinol in the treatment of gout?",
+    options: ["Adenosine deaminase", "Hypoxanthine-guanine phosphoribosyltransferase", "Xanthine oxidase", "Phosphoribosyl pyrophosphate synthetase"],
+    answer: 2,
+    explanation: "Allopurinol and its metabolite oxypurinol competitively/irreversibly inhibit xanthine oxidase, reducing uric acid synthesis."
+  },
+];
+
+const TOPICS = {
+  anatomy: ["Upper Limb", "Lower Limb", "Head & Neck", "Thorax", "Abdomen", "Neuro-anatomy"],
+  physio: ["CVS", "Respiratory", "Renal", "GIT", "Endocrine", "Neuro"],
+  biochem: ["Enzymes", "Carbohydrates", "Lipids", "Proteins", "Vitamins", "Genetics"],
+  path: ["Inflammation", "Neoplasia", "CVS Path", "Renal Path", "CNS Path", "Hematology"],
+  pharma: ["ANS", "CVS Drugs", "Antibiotics", "CNS Drugs", "Endocrine", "Chemotherapy"],
+  micro: ["Bacteriology", "Virology", "Mycology", "Parasitology", "Immunology"],
+  forensic: ["Thanatology", "Toxicology", "Injuries", "Medical Jurisprudence"],
+  psm: ["Epidemiology", "Biostatistics", "Health Programs", "Nutrition", "Environment"],
+};
+
+// ─── Theme ──────────────────────────────────────────────────────────────────
+
+// Medical color palette — ICU monitor meets dopamine loop
+const MED = {
+  // backgrounds
+  bg0:      "#04060f",  // deep surgical dark
+  bg1:      "#080d1a",  // card base
+  bg2:      "#0d1425",  // raised card
+  // neons
+  green:    "#00e5a0",  // ECG green — primary accent
+  cyan:     "#00cfff",  // vital signs cyan — streaks/live
+  red:      "#ff3d5a",  // arterial red — danger/wrong
+  amber:    "#ffb020",  // plasma amber — warning/medium
+  violet:   "#a78bfa",  // neuro violet — rank/XP
+  // text
+  textHi:   "#e8f4f0",
+  textMid:  "#7eb8a4",
+  textLow:  "#3a5a50",
+  border:   "#0e2a22",
+};
+
+const getTheme = (accent, dark) => ({
+  bg:          dark ? MED.bg0          : "#f0faf6",
+  card:        dark ? MED.bg1          : "#ffffff",
+  card2:       dark ? MED.bg2          : "#e4f7ef",
+  text:        dark ? MED.textHi       : "#0a2018",
+  muted:       dark ? MED.textMid      : "#3d7a62",
+  border:      dark ? MED.border       : "#b8e8d0",
+  accent:      dark ? accent           : "#00a870",
+  accentMuted: dark ? accent+"28"      : "#00a87018",
+  success:     MED.green,
+  danger:      dark ? MED.red          : "#d42b47",
+  warning:     dark ? MED.amber        : "#c47800",
+  cyan:        dark ? MED.cyan         : "#0099cc",
+  violet:      dark ? MED.violet       : "#7c5cbf",
+  dark,
+});
+
+// ─── Shared Components ───────────────────────────────────────────────────────
+
+function ProgressRing({ pct, size = 56, stroke = 5, color, bg }) {
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={bg} strokeWidth={stroke}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function XPBar({ xp, max, t }) {
+  const pct = Math.min(100, (xp / max) * 100);
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, fontSize:11, color: t.muted }}>
+        <span style={{ color: MED.green, fontWeight:700 }}>⚡ {xp} XP</span><span>{max}</span>
+      </div>
+      <div style={{ height:7, borderRadius:99, background: t.border, overflow:"hidden", position:"relative" }}>
+        <div style={{ width:`${pct}%`, height:"100%", background:`linear-gradient(90deg, ${MED.green}, ${MED.cyan})`, borderRadius:99, transition:"width .4s", boxShadow:`0 0 10px ${MED.green}88` }}/>
+      </div>
+    </div>
+  );
+}
+
+function Tag({ label, color }) {
+  return <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: color+"22", color, letterSpacing:.5 }}>{label.toUpperCase()}</span>;
+}
+
+// ─── Bottom Nav ──────────────────────────────────────────────────────────────
+
+const BrainIcon   = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.04-4.79A2.5 2.5 0 0 1 4.5 9.5a2.5 2.5 0 0 1 5-1v1"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 1.04-4.79A2.5 2.5 0 0 0 19.5 9.5a2.5 2.5 0 0 0-5-1v1"/></svg>;
+const QuestIcon   = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>;
+const GroupIcon   = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+
+function BottomNav({ screen, setScreen, t }) {
+  const items = [
+    { id:"home",   icon: HomeIcon,   label:"Home"    },
+    { id:"quiz",   icon: QuizIcon,   label:"Quiz"    },
+    { id:"sr",     icon: BrainIcon,  label:"Review"  },
+    { id:"duel",   icon: SwordsIcon, label:"Battle"  },
+    { id:"quests", icon: QuestIcon,  label:"Quests"  },
+    { id:"groups", icon: GroupIcon,  label:"Groups"  },
+  ];
+  return (
+    <div style={{ position:"absolute", bottom:0, left:0, right:0, background: t.card, borderTop:`1px solid ${t.border}`, display:"flex", paddingBottom:20, paddingTop:8, zIndex:50 }}>
+      {items.map(({ id, icon: Icon, label }) => {
+        const active = screen === id;
+        return (
+          <button key={id} onClick={() => setScreen(id)} style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+            <Icon color={active ? t.accent : t.muted} size={22}/>
+            <span style={{ fontSize:10, color: active ? t.accent : t.muted, fontWeight: active ? 700 : 400 }}>{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SVG Icons ───────────────────────────────────────────────────────────────
+
+// Two stethoscopes crossed like swords
+const SwordsIcon = ({ color, size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {/* Stethoscope 1: top-left to bottom-right */}
+    <line x1="4" y1="3" x2="14" y2="13"/>
+    <path d="M14 13 Q17 16 16 19 Q15 22 12 21 Q9 20 10 17 Q11 14 14 13Z" fill="none"/>
+    <circle cx="12" cy="21" r="1.2" fill={color} stroke="none"/>
+    {/* Ear tips steth 1 */}
+    <line x1="4" y1="3" x2="3" y2="5"/>
+    <line x1="3" y1="5" x2="5" y2="6"/>
+    {/* Stethoscope 2: top-right to bottom-left (mirror) */}
+    <line x1="20" y1="3" x2="10" y2="13"/>
+    <path d="M10 13 Q7 16 8 19 Q9 22 12 21 Q15 20 14 17 Q13 14 10 13Z" fill="none"/>
+    {/* Ear tips steth 2 */}
+    <line x1="20" y1="3" x2="21" y2="5"/>
+    <line x1="21" y1="5" x2="19" y2="6"/>
+  </svg>
+);
+const HomeIcon = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const BankIcon = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
+const QuizIcon = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+const RankIcon = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+const StatsIcon = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const StarIcon = ({ color, size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+const CheckIcon = ({ color, size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const ClockIcon = ({ color, size=14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const FlameIcon = ({ color, size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><path d="M12 2C10 7 7 8 7 12a5 5 0 0010 0c0-4-3-5-5-10zM9 16c0-2 1.5-3 3-5 1.5 2 3 3 3 5a3 3 0 01-6 0z"/></svg>;
+
+// ─── SCREEN: Home / Dashboard ────────────────────────────────────────────────
+
+function HomeScreen({ t, tweaks, setScreen, setQuizSubject }) {
+  const totalDone = SUBJECTS.reduce((a,s)=>a+s.done,0);
+  const totalAll = SUBJECTS.reduce((a,s)=>a+s.total,0);
+  const pct = Math.round((totalDone/totalAll)*100);
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+      {/* Header */}
+      <div style={{ padding:"20px 16px 12px", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:12, color: t.muted }}>Good morning,</div>
+            <div style={{ fontSize:20, fontWeight:800, color: t.text }}>{tweaks.studentName} 👋</div>
+          </div>
+          {tweaks.showStreaks && (
+            <div className="glow-cyan" style={{ background: MED.cyan+"18", border:`1px solid ${MED.cyan}55`, borderRadius:12, padding:"6px 12px", display:"flex", alignItems:"center", gap:5 }}>
+              <FlameIcon color={MED.cyan} size={18}/>
+              <span style={{ fontWeight:800, color:MED.cyan, fontSize:14 }}>29</span>
+              <span style={{ fontSize:10, color: t.muted }}>day streak</span>
+            </div>
+          )}
+        </div>
+        {/* XP bar */}
+        <div style={{ marginTop:12 }}>
+          <XPBar xp={9210} max={10000} t={t}/>
+        </div>
+        <div style={{ display:"flex", gap:6, marginTop:8 }}>
+          <Tag label="Rank #4" color={t.accent}/>
+          <Tag label="Phase 2" color={t.warning}/>
+          <Tag label="29 streak" color={MED.cyan}/>
+        </div>
+      </div>
+
+      {/* Overall progress */}
+      <div className="glow-green" style={{ margin:"12px 16px", background: t.card, borderRadius:16, padding:16, border:`1px solid ${MED.green}44` }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div>
+            <div style={{ fontSize:12, color: t.muted }}>Overall Progress</div>
+            <div style={{ fontSize:28, fontWeight:900, color: t.text }}>{pct}%</div>
+            <div style={{ fontSize:11, color: t.muted }}>{totalDone} / {totalAll} questions attempted</div>
+          </div>
+          <div style={{ position:"relative" }}>
+            <ProgressRing pct={pct} size={72} stroke={6} color={t.accent} bg={t.border}/>
+            <span style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", fontSize:13, fontWeight:800, color: t.accent }}>{pct}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* SR + Quest + Streak nudge row */}
+      <div style={{ padding:"0 16px", marginBottom:10 }}>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setScreen("sr")} className="glow-green" style={{ flex:1, background:MED.green+"18", border:`1px solid ${MED.green}55`, borderRadius:14, padding:10, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ fontSize:18, marginBottom:2 }}>🧠</div>
+            <div style={{ fontWeight:800, color:MED.green, fontSize:18 }}>3</div>
+            <div style={{ fontSize:10, color:t.muted, lineHeight:1.3 }}>cards due<br/>to review</div>
+          </button>
+          <button onClick={() => setScreen("quests")} style={{ flex:1, background:MED.amber+"18", border:`1px solid ${MED.amber}55`, borderRadius:14, padding:10, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ fontSize:18, marginBottom:2 }}>⭐</div>
+            <div style={{ fontWeight:800, color:MED.amber, fontSize:18 }}>1/3</div>
+            <div style={{ fontSize:10, color:t.muted, lineHeight:1.3 }}>quests<br/>done today</div>
+          </button>
+          <button onClick={() => setScreen("quests")} style={{ flex:1, background:MED.cyan+"18", border:`1px solid ${MED.cyan}55`, borderRadius:14, padding:10, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ fontSize:18, marginBottom:2 }}>🛡️</div>
+            <div style={{ fontWeight:800, color:MED.cyan, fontSize:18 }}>1</div>
+            <div style={{ fontSize:10, color:t.muted, lineHeight:1.3 }}>streak<br/>freeze left</div>
+          </button>
+          <button onClick={() => setScreen("groups")} style={{ flex:1, background:MED.violet+"18", border:`1px solid ${MED.violet}55`, borderRadius:14, padding:10, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ fontSize:18, marginBottom:2 }}>👥</div>
+            <div style={{ fontWeight:800, color:MED.violet, fontSize:18 }}>9</div>
+            <div style={{ fontSize:10, color:t.muted, lineHeight:1.3 }}>friends<br/>online</div>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div style={{ padding:"0 16px", marginBottom:12 }}>
+        <div style={{ fontSize:12, fontWeight:700, color: t.muted, marginBottom:8, letterSpacing:1 }}>QUICK START</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          {[
+            { label:"Daily Quiz", sub:"10 mixed Qs", color:MED.cyan,   emoji:"⚡", mode:"daily" },
+            { label:"Mock Exam", sub:"200 Qs · 3 hrs", color:MED.red,  emoji:"📝", mode:"mock" },
+            { label:"Weak Topics", sub:"Focus practice", color:MED.amber, emoji:"🎯", mode:"weak" },
+            { label:"Revision", sub:"Marked questions", color:MED.green, emoji:"🔄", mode:"revision" },
+          ].map(a => (
+            <button key={a.mode} onClick={() => setScreen("quiz")} style={{ background: a.color+"15", border:`1px solid ${a.color}55`, borderRadius:14, padding:12, cursor:"pointer", textAlign:"left" }}>
+              <div style={{ fontSize:22, marginBottom:4 }}>{a.emoji}</div>
+              <div style={{ fontWeight:700, color: t.text, fontSize:13 }}>{a.label}</div>
+              <div style={{ fontSize:11, color: t.muted }}>{a.sub}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Rank + Stats quick access */}
+      <div style={{ padding:"0 16px", marginBottom:10 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <button onClick={()=>setScreen("rank")} style={{ background:t.card, border:`1px solid ${MED.amber}44`, borderRadius:14, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+            <RankIcon color={MED.amber} size={20}/>
+            <div style={{ textAlign:"left" }}>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>Leaderboard</div>
+              <div style={{ fontSize:10, color:t.muted }}>Rank #4 globally</div>
+            </div>
+          </button>
+          <button onClick={()=>setScreen("stats")} style={{ background:t.card, border:`1px solid ${MED.cyan}44`, borderRadius:14, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+            <StatsIcon color={MED.cyan} size={20}/>
+            <div style={{ textAlign:"left" }}>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>My Stats</div>
+              <div style={{ fontSize:10, color:t.muted }}>74% accuracy</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Subjects grid */}
+      <div style={{ padding:"0 16px" }}>
+        <div style={{ fontSize:12, fontWeight:700, color: t.muted, marginBottom:8, letterSpacing:1 }}>SUBJECTS</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {SUBJECTS.map(s => {
+            const p = Math.round((s.done/s.total)*100);
+            return (
+              <button key={s.id} onClick={() => { setQuizSubject(s.id); setScreen("quiz"); }} style={{ background: t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, textAlign:"left" }}>
+                <div style={{ width:42, height:42, borderRadius:12, background: s.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{s.icon}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5 }}>
+                    <span style={{ fontWeight:700, color: t.text, fontSize:13 }}>{s.name}</span>
+                    <span style={{ fontSize:11, color: t.muted }}>{s.done}/{s.total}</span>
+                  </div>
+                  <div style={{ height:5, borderRadius:99, background: t.border, overflow:"hidden" }}>
+                    <div style={{ width:`${p}%`, height:"100%", background: s.color, borderRadius:99 }}/>
+                  </div>
+                </div>
+                <span style={{ fontSize:12, fontWeight:800, color: s.color, flexShrink:0 }}>{p}%</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SCREEN: Question Bank ────────────────────────────────────────────────────
+
+function BankScreen({ t }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedQ, setSelectedQ] = useState(null);
+  const [marked, setMarked] = useState(new Set([3]));
+
+  const difficulties = ["all","easy","medium","hard"];
+  const filtered = QUESTIONS.filter(q => {
+    if (filter !== "all" && q.difficulty !== filter) return false;
+    if (search && !q.q.toLowerCase().includes(search.toLowerCase()) && !q.subject.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const diffColor = { easy:"#22c55e", medium:"#f59e0b", hard:"#ef4444" };
+
+  if (selectedQ) {
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+        <div style={{ padding:"16px", background: t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={() => setSelectedQ(null)} style={{ background:"none", border:"none", cursor:"pointer", color: t.accent, fontSize:20 }}>←</button>
+          <div>
+            <div style={{ fontWeight:700, color: t.text, fontSize:14 }}>{selectedQ.subject}</div>
+            <div style={{ fontSize:11, color: t.muted }}>{selectedQ.topic}</div>
+          </div>
+        </div>
+        <div style={{ padding:16 }}>
+          <div style={{ background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:12 }}>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <Tag label={selectedQ.difficulty} color={diffColor[selectedQ.difficulty]}/>
+              <Tag label={selectedQ.subject} color={t.accent}/>
+            </div>
+            <div style={{ fontSize:15, fontWeight:600, color: t.text, lineHeight:1.5 }}>{selectedQ.q}</div>
+          </div>
+          {selectedQ.options.map((opt, i) => (
+            <div key={i} style={{ background: i===selectedQ.answer ? "#22c55e22" : t.card, border:`1px solid ${i===selectedQ.answer ? "#22c55e" : t.border}`, borderRadius:12, padding:12, marginBottom:8, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:28, height:28, borderRadius:8, background: i===selectedQ.answer ? "#22c55e" : t.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                {i===selectedQ.answer ? <CheckIcon color="#fff" size={14}/> : <span style={{ fontSize:12, fontWeight:700, color: t.muted }}>{String.fromCharCode(65+i)}</span>}
+              </div>
+              <span style={{ fontSize:13, color: i===selectedQ.answer ? "#22c55e" : t.text, fontWeight: i===selectedQ.answer ? 700 : 400 }}>{opt}</span>
+            </div>
+          ))}
+          <div style={{ background: t.accentMuted, borderRadius:12, padding:12, marginTop:4 }}>
+            <div style={{ fontSize:12, fontWeight:700, color: t.accent, marginBottom:4 }}>💡 Explanation</div>
+            <div style={{ fontSize:13, color: t.text, lineHeight:1.5 }}>{selectedQ.explanation}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+      <div style={{ padding:"16px", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:800, color: t.text, fontSize:18, marginBottom:10 }}>Question Bank</div>
+        <div style={{ background: t.bg, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, border:`1px solid ${t.border}`, marginBottom:10 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.muted} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search questions or subjects…" style={{ flex:1, background:"none", border:"none", outline:"none", color: t.text, fontSize:13 }}/>
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          {difficulties.map(d => (
+            <button key={d} onClick={()=>setFilter(d)} style={{ flex:1, padding:"6px 0", borderRadius:8, border:"none", cursor:"pointer", background: filter===d ? (d==="all"?t.accent:diffColor[d]) : t.bg, color: filter===d ? "#fff" : t.muted, fontWeight:700, fontSize:11 }}>
+              {d.charAt(0).toUpperCase()+d.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+        {filtered.map(q => (
+          <button key={q.id} onClick={() => setSelectedQ(q)} style={{ background: t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:12, cursor:"pointer", textAlign:"left", position:"relative" }}>
+            <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+              <Tag label={q.difficulty} color={diffColor[q.difficulty]}/>
+              <Tag label={q.subject} color={t.accent}/>
+              <Tag label={q.topic} color={t.muted}/>
+            </div>
+            <div style={{ fontSize:13, color: t.text, fontWeight:500, lineHeight:1.4 }}>{q.q}</div>
+            <div style={{ marginTop:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:11, color: t.muted }}>{q.options.length} options</span>
+              <button onClick={e=>{e.stopPropagation();setMarked(m=>{const n=new Set(m);n.has(q.id)?n.delete(q.id):n.add(q.id);return n;})}} style={{ background:"none", border:"none", cursor:"pointer", padding:0 }}>
+                <StarIcon color={marked.has(q.id)?t.warning:t.border} size={16}/>
+              </button>
+            </div>
+          </button>
+        ))}
+        {filtered.length===0 && <div style={{ textAlign:"center", padding:32, color: t.muted }}>No questions found</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── SCREEN: Quiz ────────────────────────────────────────────────────────────
+
+function QuizScreen({ t, quizSubject }) {
+  const [mode, setMode] = useState("select");
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [answered, setAnswered] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(90);
+  const [quizMode, setQuizMode] = useState("timed");
+  const [showAI, setShowAI] = useState(false);
+  const timerRef = useRef(null);
+
+  const qs = QUESTIONS;
+  const q = qs[current];
+  const diffColor = { easy:"#22c55e", medium:"#f59e0b", hard:"#ef4444" };
+
+  useEffect(() => {
+    if (mode === "active" && quizMode === "timed") {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(tl => {
+          if (tl <= 1) { handleNext(true); return 90; }
+          return tl - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [mode, current, quizMode]);
+
+  function startQuiz(m) {
+    setQuizMode(m); setMode("active"); setCurrent(0); setAnswered([]); setSelected(null); setTimeLeft(90);
+  }
+
+  function handleNext(timeout = false) {
+    clearInterval(timerRef.current);
+    const ans = timeout ? -1 : selected;
+    const newAnswered = [...answered, { qIndex: current, selected: ans, correct: ans === q.answer }];
+    setAnswered(newAnswered);
+    if (current + 1 < qs.length) {
+      setCurrent(c => c + 1); setSelected(null); setTimeLeft(90);
+    } else {
+      setMode("result");
+    }
+  }
+
+  if (mode === "select") {
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+        <div style={{ padding:"16px", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ fontWeight:800, color: t.text, fontSize:18 }}>Start a Quiz</div>
+          <div style={{ fontSize:12, color: t.muted, marginTop:2 }}>Choose your mode and subject</div>
+        </div>
+        <div style={{ padding:"12px 16px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color: t.muted, letterSpacing:1, marginBottom:8 }}>QUIZ MODE</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {[
+              { id:"timed", icon:"⏱️", label:"Timed Mode", sub:"90 sec per question", color:"#ef4444" },
+              { id:"practice", icon:"📖", label:"Practice Mode", sub:"No timer — review as you go", color:"#6c63ff" },
+              { id:"topic", icon:"🎯", label:"Topic-wise", sub:"Select a specific topic", color:"#f59e0b" },
+              { id:"grand", icon:"🏆", label:"Grand Test", sub:"200 questions · 3 hours", color:"#22c55e" },
+            ].map(m => (
+              <button key={m.id} onClick={()=>startQuiz(m.id)} style={{ background: t.card, border:`1px solid ${m.color}44`, borderRadius:14, padding:14, cursor:"pointer", display:"flex", alignItems:"center", gap:12, textAlign:"left" }}>
+                <div style={{ width:44, height:44, borderRadius:12, background: m.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{m.icon}</div>
+                <div>
+                  <div style={{ fontWeight:700, color: t.text, fontSize:14 }}>{m.label}</div>
+                  <div style={{ fontSize:12, color: t.muted }}>{m.sub}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize:11, fontWeight:700, color: t.muted, letterSpacing:1, marginTop:16, marginBottom:8 }}>SUBJECT</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            {SUBJECTS.map(s => (
+              <button key={s.id} onClick={()=>startQuiz("timed")} style={{ background: t.card, border:`1px solid ${s.color}44`, borderRadius:12, padding:10, cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:18 }}>{s.icon}</span>
+                <div style={{ fontSize:12, fontWeight:700, color: t.text, marginTop:4 }}>{s.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "result") {
+    const score = answered.filter(a=>a.correct).length;
+    const pct = Math.round((score/qs.length)*100);
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+        <div style={{ padding:"24px 16px 12px", textAlign:"center" }}>
+          <div style={{ fontSize:56, marginBottom:8 }}>{pct>=80?"🏆":pct>=60?"👍":"💪"}</div>
+          <div style={{ fontSize:28, fontWeight:900, color: t.text }}>{pct}%</div>
+          <div style={{ fontSize:14, color: t.muted }}>{score} / {qs.length} correct</div>
+          <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:10 }}>
+            <Tag label={pct>=80?"Excellent":pct>=60?"Good":"Keep Practicing"} color={pct>=80?"#22c55e":pct>=60?t.accent:t.warning}/>
+          </div>
+        </div>
+        <div style={{ margin:"0 16px 12px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+          {[
+            { label:"Correct", value: score, color:"#22c55e" },
+            { label:"Wrong", value: qs.length-score, color:"#ef4444" },
+            { label:"XP Earned", value: score*50, color: t.accent },
+          ].map(s => (
+            <div key={s.label} style={{ background: t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:10, textAlign:"center" }}>
+              <div style={{ fontSize:20, fontWeight:900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize:10, color: t.muted }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ margin:"0 16px" }}>
+          {answered.map((a, i) => {
+            const q2 = qs[a.qIndex];
+            return (
+              <div key={i} style={{ background: t.card, border:`1px solid ${a.correct?"#22c55e44":a.selected===-1?t.border:"#ef444444"}`, borderRadius:12, padding:10, marginBottom:8 }}>
+                <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                  <span style={{ fontSize:16 }}>{a.correct?"✅":a.selected===-1?"⏰":"❌"}</span>
+                  <Tag label={q2.difficulty} color={diffColor[q2.difficulty]}/>
+                </div>
+                <div style={{ fontSize:12, color: t.text, lineHeight:1.4 }}>{q2.q}</div>
+                <div style={{ fontSize:11, color: t.muted, marginTop:4 }}>Correct: {q2.options[q2.answer]}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding:"8px 16px" }}>
+          <button onClick={()=>setMode("select")} style={{ width:"100%", background: t.accent, border:"none", borderRadius:12, padding:14, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+            Try Another Quiz
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Active quiz
+  const timerPct = (timeLeft / 90) * 100;
+  const timerColor = timeLeft > 30 ? "#22c55e" : timeLeft > 15 ? t.warning : "#ef4444";
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background: t.bg, paddingBottom:80 }}>
+      {/* Header */}
+      <div style={{ padding:"12px 16px", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <button onClick={()=>setMode("select")} style={{ background:"none", border:"none", cursor:"pointer", color: t.muted, fontSize:12 }}>✕ Exit</button>
+          <span style={{ fontWeight:700, color: t.text, fontSize:13 }}>{current+1} / {qs.length}</span>
+          {quizMode === "timed" && (
+            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+              <ClockIcon color={timerColor} size={14}/>
+              <span style={{ fontWeight:800, color: timerColor, fontSize:14, minWidth:24 }}>{timeLeft}s</span>
+            </div>
+          )}
+        </div>
+        {quizMode === "timed" && (
+          <div style={{ height:4, borderRadius:99, background: t.border, overflow:"hidden" }}>
+            <div style={{ width:`${timerPct}%`, height:"100%", background: timerColor, borderRadius:99, transition:"width 1s linear" }}/>
+          </div>
+        )}
+        <div style={{ display:"flex", gap:4, marginTop:6 }}>
+          {qs.map((_,i) => (
+            <div key={i} style={{ flex:1, height:4, borderRadius:99, background: i<current ? t.accent : i===current ? t.accent+"88" : t.border }}/>
+          ))}
+        </div>
+      </div>
+
+      {/* Question */}
+      <div style={{ flex:1, overflowY:"auto", padding:"14px 16px" }}>
+        <div style={{ background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:12 }}>
+          <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+            <Tag label={q.difficulty} color={diffColor[q.difficulty]}/>
+            <Tag label={q.subject} color={t.accent}/>
+            <Tag label={q.topic} color={t.muted}/>
+          </div>
+          <div style={{ fontSize:14, fontWeight:600, color: t.text, lineHeight:1.6 }}>{q.q}</div>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {q.options.map((opt, i) => {
+            let bg = t.card, border = t.border, color = t.text;
+            if (selected !== null) {
+              if (i === q.answer) { bg="#22c55e22"; border="#22c55e"; color="#22c55e"; }
+              else if (i === selected && selected !== q.answer) { bg="#ef444422"; border="#ef4444"; color="#ef4444"; }
+            } else if (selected === i) {
+              bg = t.accentMuted; border = t.accent; color = t.accent;
+            }
+            return (
+              <button key={i} disabled={selected!==null} onClick={()=>setSelected(i)} style={{ background: bg, border:`2px solid ${border}`, borderRadius:12, padding:"10px 14px", cursor: selected!==null?"default":"pointer", display:"flex", alignItems:"center", gap:10, transition:"all .15s", textAlign:"left" }}>
+                <div style={{ width:30, height:30, borderRadius:8, background: i===q.answer&&selected!==null ? "#22c55e" : selected===i&&selected!==null&&selected!==q.answer ? "#ef4444" : t.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {i===q.answer && selected!==null ? <CheckIcon color="#fff" size={14}/> : <span style={{ fontSize:12, fontWeight:700, color: t.muted }}>{String.fromCharCode(65+i)}</span>}
+                </div>
+                <span style={{ fontSize:13, color, fontWeight: selected!==null&&(i===q.answer||i===selected)?700:400, lineHeight:1.4 }}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {selected !== null && (
+          <>
+            <div style={{ background:t.accentMuted, borderRadius:12, padding:12, marginTop:10 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:t.accent, marginBottom:4 }}>💡 Explanation</div>
+              <div style={{ fontSize:12, color:t.text, lineHeight:1.5 }}>{q.explanation}</div>
+            </div>
+            <button onClick={()=>setShowAI(true)} style={{ width:"100%", marginTop:8, background:`linear-gradient(135deg,${MED.green}22,${MED.cyan}22)`, border:`1px solid ${MED.green}55`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:26, height:26, borderRadius:8, background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>🤖</div>
+              <div style={{ textAlign:"left" }}>
+                <div style={{ fontSize:12, fontWeight:700, color:MED.green }}>Ask AI Tutor</div>
+                <div style={{ fontSize:10, color:t.muted }}>Explain this further, mnemonics, comparisons…</div>
+              </div>
+            </button>
+          </>
+        )}
+        {showAI && <AIExplainPanel t={t} question={q.q} explanation={q.explanation} onClose={()=>setShowAI(false)}/>}
+      </div>
+
+      {/* Next button */}
+      <div style={{ padding:"8px 16px 12px" }}>
+        <button onClick={()=>handleNext()} disabled={selected===null} style={{ width:"100%", background: selected!==null ? t.accent : t.border, border:"none", borderRadius:12, padding:14, color:"#fff", fontWeight:700, fontSize:15, cursor: selected!==null?"pointer":"not-allowed", transition:"background .2s" }}>
+          {current+1 === qs.length ? "See Results" : "Next Question →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SCREEN: Challenge a Friend ──────────────────────────────────────────────
+
+const FRIENDS = [
+  { id:1, name:"Priya S.",    avatar:"P", subject:"Pathology",    xp:9820, streak:42, online:true  },
+  { id:2, name:"Rohan K.",    avatar:"R", subject:"Pharmacology", xp:9640, streak:38, online:true  },
+  { id:3, name:"Sneha M.",    avatar:"S", subject:"Anatomy",      xp:9410, streak:35, online:false },
+  { id:4, name:"Aditya R.",   avatar:"A", subject:"Biochemistry", xp:8990, streak:24, online:true  },
+  { id:5, name:"Kavya T.",    avatar:"K", subject:"Microbiology", xp:8760, streak:20, online:false },
+  { id:6, name:"Mihir P.",    avatar:"M", subject:"Surgery",      xp:8540, streak:18, online:true  },
+];
+
+// ─── Live Invite Flow Component ──────────────────────────────────────────────
+
+function LiveInviteFlow({ t, selected, subject, numQs, onAccepted, onDeclined, onCancel }) {
+  // step: checking | offline | sent | accepted | declined | countdown
+  const [step, setStep] = useState("checking");
+  const [countdown, setCountdown] = useState(3);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    // Simulate checking online status
+    const t1 = setTimeout(() => {
+      if (selected?.online) setStep("sent");
+      else setStep("offline");
+    }, 1400);
+    return () => clearTimeout(t1);
+  }, []);
+
+  useEffect(() => {
+    if (step !== "sent") return;
+    // Simulate friend accepting after ~3s
+    const t2 = setTimeout(() => setStep("accepted"), 3000);
+    return () => clearTimeout(t2);
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "accepted") return;
+    setCountdown(3);
+    timerRef.current = setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) { clearInterval(timerRef.current); onAccepted(); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [step]);
+
+  const avatarBox = (name, avatar, color, label) => (
+    <div style={{ textAlign:"center", flex:1 }}>
+      <div style={{ width:56, height:56, borderRadius:99, background:color+"33", border:`2px solid ${color}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color, fontSize:22, margin:"0 auto 6px" }}>{avatar}</div>
+      <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{name}</div>
+      {label && <div style={{ fontSize:10, color:t.muted, marginTop:2 }}>{label}</div>}
+    </div>
+  );
+
+  const pulseDots = () => (
+    <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{ width:10, height:10, borderRadius:99, background:t.accent, animation:`blink${i} .9s ease-in-out ${i*0.25}s infinite alternate`, opacity:.3 }}/>
+      ))}
+      <style>{`@keyframes blink0{to{opacity:1;transform:scale(1.3)}}@keyframes blink1{to{opacity:1;transform:scale(1.3)}}@keyframes blink2{to{opacity:1;transform:scale(1.3)}}`}</style>
+    </div>
+  );
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+      {/* Header */}
+      <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:12 }}>
+        <button onClick={onCancel} style={{ background:"none", border:"none", cursor:"pointer", color:t.accent, fontSize:20 }}>←</button>
+        <div style={{ fontWeight:800, color:t.text, fontSize:16 }}>⚡ Live Duel</div>
+      </div>
+
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 28px", gap:24 }}>
+
+        {/* VS avatars */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%" }}>
+          {avatarBox("You", "A", t.accent, "9,210 XP")}
+          <div style={{ fontSize:26, fontWeight:900, color:t.muted }}>VS</div>
+          {avatarBox(selected?.name, selected?.avatar, "#ef4444", `${selected?.xp?.toLocaleString()} XP`)}
+        </div>
+
+        {/* Challenge pill */}
+        <div style={{ background:t.accentMuted, border:`1px solid ${t.accent}44`, borderRadius:14, padding:"8px 18px", fontSize:12, color:t.accent, fontWeight:600, textAlign:"center" }}>
+          {subject} · {numQs} Questions · 20s per Q
+        </div>
+
+        {/* ── STEP: checking ── */}
+        {step === "checking" && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
+            <div style={{ width:52, height:52, borderRadius:99, border:`3px solid ${t.accent}`, borderTopColor:"transparent", animation:"spin .8s linear infinite" }}/>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <div style={{ fontWeight:700, color:t.text, fontSize:16 }}>Checking status…</div>
+            <div style={{ fontSize:12, color:t.muted }}>Seeing if {selected?.name} is online</div>
+          </div>
+        )}
+
+        {/* ── STEP: offline ── */}
+        {step === "offline" && (
+          <div style={{ width:"100%", display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
+            <div style={{ width:52, height:52, borderRadius:99, background:"#ef444422", border:`2px solid #ef4444`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26 }}>😴</div>
+            <div style={{ fontWeight:800, color:"#ef4444", fontSize:18 }}>{selected?.name} is Offline</div>
+            <div style={{ fontSize:12, color:t.muted, textAlign:"center", lineHeight:1.6 }}>
+              They can't join a live duel right now.<br/>Try an Open Challenge instead — they'll answer when ready.
+            </div>
+            <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={onDeclined} style={{ width:"100%", background:"#6c63ff", border:"none", borderRadius:12, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                📨 Switch to Open Challenge
+              </button>
+              <button onClick={onCancel} style={{ width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, color:t.muted, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP: sent ── */}
+        {step === "sent" && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, width:"100%" }}>
+            <div style={{ background:"#22c55e22", border:"1px solid #22c55e44", borderRadius:12, padding:"8px 16px", display:"flex", gap:6, alignItems:"center" }}>
+              <div style={{ width:8, height:8, borderRadius:99, background:"#22c55e" }}/>
+              <span style={{ fontSize:12, color:"#22c55e", fontWeight:700 }}>{selected?.name} is Online</span>
+            </div>
+            <div style={{ fontWeight:700, color:t.text, fontSize:16 }}>Invite Sent!</div>
+            <div style={{ fontSize:12, color:t.muted }}>Waiting for {selected?.name} to accept…</div>
+            {pulseDots()}
+            <div style={{ width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                <div style={{ width:36, height:36, borderRadius:99, background:"#22c55e22", border:"2px solid #22c55e", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#22c55e", fontSize:16 }}>
+                  {selected?.avatar}
+                </div>
+                <div>
+                  <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{selected?.name}</div>
+                  <div style={{ fontSize:11, color:"#22c55e" }}>● Online now</div>
+                </div>
+              </div>
+              <div style={{ height:4, borderRadius:99, background:t.border, overflow:"hidden" }}>
+                <div style={{ width:"60%", height:"100%", background:"#22c55e", borderRadius:99, animation:"waitBar 3s linear forwards" }}/>
+              </div>
+              <style>{`@keyframes waitBar{from{width:0%}to{width:100%}}`}</style>
+            </div>
+            <button onClick={onCancel} style={{ background:"none", border:`1px solid ${t.border}`, borderRadius:10, padding:"8px 20px", color:t.muted, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              Cancel Invite
+            </button>
+          </div>
+        )}
+
+        {/* ── STEP: accepted ── */}
+        {step === "accepted" && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, width:"100%" }}>
+            <div style={{ fontSize:44 }}>🤝</div>
+            <div style={{ fontWeight:800, color:"#22c55e", fontSize:20 }}>Challenge Accepted!</div>
+            <div style={{ fontSize:13, color:t.muted }}>{selected?.name} is ready to fight</div>
+            <div style={{ width:80, height:80, borderRadius:99, background:t.accent+"22", border:`4px solid ${t.accent}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ fontSize:44, fontWeight:900, color:t.accent }}>{countdown}</span>
+            </div>
+            <div style={{ fontSize:14, color:t.muted, fontWeight:600 }}>Starting in…</div>
+          </div>
+        )}
+
+        {/* ── STEP: declined ── */}
+        {step === "declined" && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, width:"100%" }}>
+            <div style={{ fontSize:44 }}>😞</div>
+            <div style={{ fontWeight:800, color:"#ef4444", fontSize:18 }}>{selected?.name} Declined</div>
+            <div style={{ fontSize:12, color:t.muted, textAlign:"center" }}>They're busy right now. Try again later or challenge someone else.</div>
+            <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={onDeclined} style={{ width:"100%", background:"#6c63ff", border:"none", borderRadius:12, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                📨 Send Open Challenge Instead
+              </button>
+              <button onClick={onCancel} style={{ width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, color:t.muted, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                Back
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const DUEL_QS = [
+  { id:1, q:"Which nerve is injured in Erb's palsy?", options:["Radial","Ulnar","C5-C6 roots","Median"], answer:2 },
+  { id:2, q:"Pacemaker of the heart:", options:["AV node","Bundle of His","SA node","Purkinje fibers"], answer:2 },
+  { id:3, q:"Drug of choice for status epilepticus:", options:["Phenytoin","Diazepam","Carbamazepine","Phenobarbitone"], answer:1 },
+  { id:4, q:"Most common cause of secondary hypertension:", options:["Phaeochromocytoma","Renal artery stenosis","Conn's syndrome","Coarctation of aorta"], answer:1 },
+  { id:5, q:"Type of necrosis in TB:", options:["Coagulative","Liquefactive","Caseous","Fat"], answer:2 },
+];
+
+function DuelScreen({ t, myName }) {
+  // phase: lobby | setup | waiting | battle | async_intro | open_battle | open_pending | result | history
+  const [phase, setPhase]         = useState("lobby");
+  const [selected, setSelected]   = useState(null);
+  const [subject, setSubject]     = useState("Mixed");
+  const [numQs, setNumQs]         = useState(5);
+  const [duelMode, setDuelMode]   = useState("live"); // "live" | "open"
+  const [current, setCurrent]     = useState(0);
+  const [pick, setPick]           = useState(null);
+  const [myAnswers, setMyAnswers] = useState([]);
+  const [timeLeft, setTimeLeft]   = useState(20);
+  const [botAnswers]              = useState(() =>
+    DUEL_QS.map(q => ({ correct: Math.random() > 0.35, time: Math.floor(Math.random()*15)+3 }))
+  );
+  const [botProgress, setBotProgress] = useState(0);
+  const [history]                 = useState([
+    { opp:"Priya S.",   result:"won",  myScore:4, oppScore:2, subject:"Pathology",    date:"Today",        mode:"live"  },
+    { opp:"Rohan K.",   result:"lost", myScore:2, oppScore:5, subject:"Pharmacology", date:"Yesterday",    mode:"live"  },
+    { opp:"Sneha M.",   result:"won",  myScore:5, oppScore:3, subject:"Anatomy",      date:"2 days ago",   mode:"open" },
+    { opp:"Aditya R.",  result:"pending", myScore:4, oppScore:null, subject:"Biochemistry", date:"3 days ago", mode:"open" },
+  ]);
+  const timerRef = useRef(null);
+
+  const qs = DUEL_QS.slice(0, numQs);
+  const q  = qs[current];
+
+  // Timer during battle
+  useEffect(() => {
+    if (phase !== "battle") return;
+    setTimeLeft(20);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(tl => {
+        if (tl <= 1) { handleAnswer(null, true); return 20; }
+        return tl - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [phase, current]);
+
+  // Bot "typing" animation
+  useEffect(() => {
+    if (phase !== "battle") return;
+    const delay = (botAnswers[current]?.time || 8) * 1000;
+    const t2 = setTimeout(() => setBotProgress(current + 1), delay);
+    return () => clearTimeout(t2);
+  }, [phase, current]);
+
+  function handleAnswer(idx, timeout = false) {
+    clearInterval(timerRef.current);
+    const correct = !timeout && idx === q.answer;
+    const newAnswers = [...myAnswers, { idx, correct, timeout }];
+    setMyAnswers(newAnswers);
+    setPick(null);
+    if (current + 1 < qs.length) {
+      setCurrent(c => c + 1);
+    } else {
+      setPhase("result");
+    }
+  }
+
+  function resetDuel() {
+    setCurrent(0); setPick(null); setMyAnswers([]); setTimeLeft(20); setBotProgress(0);
+  }
+
+  // ── LOBBY ──
+  if (phase === "lobby") {
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+        <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ fontWeight:800, color:t.text, fontSize:18 }}>⚔️ Challenge a Friend</div>
+          <div style={{ fontSize:12, color:t.muted, marginTop:2 }}>Pick an opponent and duel in real-time MCQs</div>
+        </div>
+
+        {/* Pending challenges */}
+        <div style={{ margin:"12px 16px 0" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>INCOMING CHALLENGES</div>
+          <div style={{ background:`linear-gradient(135deg,${t.accent}22,#ef444422)`, border:`1px solid ${t.accent}55`, borderRadius:16, padding:14, display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:44, height:44, borderRadius:99, background:t.accent, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:18, flexShrink:0 }}>R</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, color:t.text, fontSize:14 }}>Rohan K. challenged you!</div>
+              <div style={{ fontSize:11, color:t.muted }}>5 Qs · Pharmacology · Timed</div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              <button onClick={() => { setSelected(FRIENDS[1]); setSubject("Pharmacology"); setNumQs(5); setPhase("battle"); resetDuel(); }} style={{ background:"#22c55e", border:"none", borderRadius:8, padding:"5px 12px", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer" }}>Accept</button>
+              <button style={{ background:t.border, border:"none", borderRadius:8, padding:"5px 12px", color:t.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>Decline</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Friends list */}
+        <div style={{ padding:"12px 16px 0" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>FRIENDS</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {FRIENDS.map(f => (
+              <div key={f.id} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:"10px 14px", display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ position:"relative", flexShrink:0 }}>
+                  <div style={{ width:42, height:42, borderRadius:99, background:t.accent+"44", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:t.accent, fontSize:17 }}>{f.avatar}</div>
+                  <div style={{ position:"absolute", bottom:1, right:1, width:10, height:10, borderRadius:99, background:f.online?"#22c55e":"#555", border:`2px solid ${t.card}` }}/>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{f.name}</div>
+                  <div style={{ fontSize:11, color:t.muted }}>{f.subject} · {f.xp.toLocaleString()} XP · 🔥{f.streak}</div>
+                </div>
+                <button onClick={() => { setSelected(f); setPhase("setup"); }} style={{ background:t.accent, border:"none", borderRadius:10, padding:"7px 12px", color:MED.bg0, fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                  <SwordsIcon color={MED.bg0} size={16}/>
+                  Duel
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Past duels */}
+        <div style={{ padding:"12px 16px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>RECENT DUELS</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {history.map((h, i) => (
+              <div key={i} style={{ background:t.card, border:`1px solid ${h.result==="won"?"#22c55e44":h.result==="pending"?t.accent+"44":t.border}`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:36, height:36, borderRadius:99, background:h.result==="won"?"#22c55e22":h.result==="pending"?t.accentMuted:"#ef444422", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>
+                  {h.result==="won"?"🏆":h.result==="pending"?"⏳":"💔"}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:t.text }}>vs {h.opp}</span>
+                    <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:99, background:h.mode==="live"?"#ef444422":"#6c63ff22", color:h.mode==="live"?"#ef4444":"#6c63ff" }}>{h.mode==="live"?"⚡ LIVE":"📨 OPEN"}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:t.muted }}>{h.subject} · {h.date}</div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  {h.result==="pending"
+                    ? <div style={{ fontSize:11, fontWeight:700, color:t.accent }}>Awaiting<br/>response</div>
+                    : <>
+                        <div style={{ fontWeight:800, color:h.result==="won"?"#22c55e":"#ef4444", fontSize:14 }}>{h.myScore}–{h.oppScore}</div>
+                        <div style={{ fontSize:10, color:t.muted }}>{h.result==="won"?"Victory":"Defeat"}</div>
+                      </>
+                  }
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── SETUP ──
+  if (phase === "setup") {
+    const isLive = duelMode === "live";
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+        <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={() => setPhase("lobby")} style={{ background:"none", border:"none", cursor:"pointer", color:t.accent, fontSize:20 }}>←</button>
+          <div><div style={{ fontWeight:800, color:t.text, fontSize:16 }}>Challenge Setup</div></div>
+        </div>
+
+        {/* VS card */}
+        <div style={{ margin:"16px 16px 12px", background:`linear-gradient(135deg,${t.accent}18,#6c63ff18)`, border:`1px solid ${t.accent}33`, borderRadius:20, padding:20 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ width:56, height:56, borderRadius:99, background:t.accent, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:22, margin:"0 auto 6px" }}>A</div>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{myName}</div>
+              <div style={{ fontSize:11, color:t.muted }}>9,210 XP</div>
+            </div>
+            <div style={{ fontSize:28, fontWeight:900, color:t.accent, padding:"0 12px" }}>VS</div>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ width:56, height:56, borderRadius:99, background:"#ef444422", border:`2px solid #ef4444`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#ef4444", fontSize:22, margin:"0 auto 6px" }}>{selected?.avatar}</div>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{selected?.name}</div>
+              <div style={{ fontSize:11, color:t.muted }}>{selected?.xp.toLocaleString()} XP</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding:"0 16px" }}>
+
+          {/* ── DUEL MODE TOGGLE ── */}
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>BATTLE MODE</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+            {[
+              { id:"live",  icon:"⚡", label:"Live Duel",  sub:"Same Qs at the same time. Race to answer fastest.", color:"#ef4444" },
+              { id:"open", icon:"📨", label:"Open Challenge", sub:"You answer now. Friend plays when free.", color:"#6c63ff" },
+            ].map(m => (
+              <button key={m.id} onClick={()=>setDuelMode(m.id)} style={{ background: duelMode===m.id ? m.color+"22" : t.card, border:`2px solid ${duelMode===m.id ? m.color : t.border}`, borderRadius:14, padding:12, cursor:"pointer", textAlign:"left", transition:"all .15s" }}>
+                <div style={{ fontSize:22, marginBottom:4 }}>{m.icon}</div>
+                <div style={{ fontWeight:800, color: duelMode===m.id ? m.color : t.text, fontSize:13 }}>{m.label}</div>
+                <div style={{ fontSize:10, color:t.muted, marginTop:3, lineHeight:1.4 }}>{m.sub}</div>
+                {duelMode===m.id && <div style={{ marginTop:6, width:20, height:3, borderRadius:99, background:m.color }}/>}
+              </button>
+            ))}
+          </div>
+
+          {/* Mode detail pill */}
+          <div style={{ background: isLive?"#ef444418":"#6c63ff18", border:`1px solid ${isLive?"#ef444444":"#6c63ff44"}`, borderRadius:12, padding:"8px 12px", marginBottom:16, display:"flex", gap:8, alignItems:"flex-start" }}>
+            <span style={{ fontSize:14 }}>{isLive?"⚡":"📨"}</span>
+            <div style={{ fontSize:11, color:t.muted, lineHeight:1.5 }}>
+              {isLive
+                ? "Both players receive the same questions simultaneously. A 20-second timer counts down per question. Final score is based on correct answers."
+                : "You answer the questions first. A challenge link is sent to your friend. Once they complete it, results are revealed. No time pressure on either side."}
+            </div>
+          </div>
+
+          {/* Subject */}
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>SUBJECT</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+            {["Mixed","Anatomy","Physiology","Biochemistry","Pathology","Pharmacology","Microbiology"].map(s => (
+              <button key={s} onClick={()=>setSubject(s)} style={{ padding:"7px 14px", borderRadius:99, border:`1.5px solid ${subject===s?t.accent:t.border}`, background:subject===s?t.accentMuted:"none", color:subject===s?t.accent:t.muted, fontWeight:700, fontSize:12, cursor:"pointer" }}>{s}</button>
+            ))}
+          </div>
+
+          {/* Number of questions */}
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>NUMBER OF QUESTIONS</div>
+          <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+            {[5,10,15,20].map(n => (
+              <button key={n} onClick={()=>setNumQs(n)} style={{ flex:1, padding:"10px 0", borderRadius:12, border:`1.5px solid ${numQs===n?t.accent:t.border}`, background:numQs===n?t.accentMuted:"none", color:numQs===n?t.accent:t.muted, fontWeight:800, fontSize:14, cursor:"pointer" }}>{n}</button>
+            ))}
+          </div>
+
+          <button onClick={() => {
+            resetDuel();
+            if (duelMode === "live") {
+              setPhase("waiting");
+              setTimeout(() => setPhase("battle"), 2200);
+            } else {
+              setPhase("open_battle");
+            }
+          }} style={{ width:"100%", background: isLive?"#ef4444":t.accent, border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+            <span>{isLive?"⚡":"📨"}</span> {isLive?"Start Live Duel":"Go First · Open Challenge"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OPEN CHALLENGE (you answer first, no timer) ──
+  if (phase === "open_battle") {
+    const qs = DUEL_QS.slice(0, numQs);
+    const q  = qs[current];
+    const answered = pick !== null;
+
+    function handleAsyncAnswer(idx) {
+      const correct = idx === q.answer;
+      const newAnswers = [...myAnswers, { idx, correct }];
+      setMyAnswers(newAnswers);
+      setPick(null);
+      if (current + 1 < qs.length) {
+        setTimeout(() => setCurrent(c => c + 1), 500);
+      } else {
+        setPhase("open_pending");
+      }
+    }
+
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+        {/* Header */}
+        <div style={{ padding:"10px 16px 10px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ background:"#6c63ff22", borderRadius:8, padding:"3px 10px" }}>
+                <span style={{ fontSize:11, fontWeight:700, color:"#6c63ff" }}>📨 OPEN</span>
+              </div>
+              <span style={{ fontSize:12, color:t.muted }}>Your turn</span>
+            </div>
+            <span style={{ fontWeight:700, color:t.text, fontSize:13 }}>Q {current+1}/{qs.length}</span>
+          </div>
+          <div style={{ display:"flex", gap:3 }}>
+            {qs.map((_,i)=>(
+              <div key={i} style={{ flex:1, height:4, borderRadius:99, background: i<current?t.accent:i===current?t.accent+"88":t.border }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Opponent waiting banner */}
+        <div style={{ margin:"10px 16px 0", background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:"8px 12px", display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ width:28, height:28, borderRadius:99, background:"#6c63ff22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:"#6c63ff", flexShrink:0 }}>{selected?.avatar}</div>
+          <div style={{ fontSize:11, color:t.muted }}><span style={{ fontWeight:700, color:t.text }}>{selected?.name}</span> will answer after you finish</div>
+        </div>
+
+        <div style={{ flex:1, overflowY:"auto", padding:"12px 16px" }}>
+          <div style={{ background:t.card, borderRadius:16, padding:14, border:`1px solid ${t.border}`, marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:t.text, lineHeight:1.6 }}>{q.q}</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {q.options.map((opt,i) => {
+              let bg=t.card, border=t.border, color=t.text;
+              if (answered) {
+                if (i===q.answer) { bg="#22c55e22"; border="#22c55e"; color="#22c55e"; }
+                else if (i===pick && pick!==q.answer) { bg="#ef444422"; border="#ef4444"; color="#ef4444"; }
+              } else if (pick===i) {
+                bg=t.accentMuted; border=t.accent; color=t.accent;
+              }
+              return (
+                <button key={i} disabled={answered} onClick={()=>{ setPick(i); setTimeout(()=>handleAsyncAnswer(i),300); }}
+                  style={{ background:bg, border:`2px solid ${border}`, borderRadius:12, padding:"10px 14px", cursor:answered?"default":"pointer", display:"flex", alignItems:"center", gap:10, transition:"all .15s", textAlign:"left" }}>
+                  <div style={{ width:30, height:30, borderRadius:8, background:i===q.answer&&answered?"#22c55e":i===pick&&answered&&pick!==q.answer?"#ef4444":t.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    {i===q.answer&&answered?<CheckIcon color="#fff" size={14}/>:<span style={{ fontSize:12, fontWeight:700, color:t.muted }}>{String.fromCharCode(65+i)}</span>}
+                  </div>
+                  <span style={{ fontSize:13, color, fontWeight:answered&&(i===q.answer||i===pick)?700:400, lineHeight:1.4 }}>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+          {answered && (
+            <div style={{ background:t.accentMuted, borderRadius:12, padding:10, marginTop:10, fontSize:12, color:t.text }}>
+              {current+1 < qs.length ? "✔ Saved! Next question loading…" : "✔ All answered! Sending to opponent…"}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── OPEN PENDING (waiting for friend) ──
+  if (phase === "open_pending") {
+    const myScore = myAnswers.filter(a=>a.correct).length;
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:t.bg, gap:16, paddingBottom:80, padding:"0 24px 80px" }}>
+        <div style={{ fontSize:60 }}>📨</div>
+        <div style={{ fontWeight:800, color:t.text, fontSize:20, textAlign:"center" }}>Challenge Sent!</div>
+        <div style={{ fontSize:13, color:t.muted, textAlign:"center", lineHeight:1.6 }}>
+          You scored <span style={{ fontWeight:800, color:t.accent }}>{myScore}/{DUEL_QS.slice(0,numQs).length}</span>.<br/>
+          Waiting for <span style={{ fontWeight:700, color:t.text }}>{selected?.name}</span> to take their turn.
+        </div>
+        {/* Share link mock */}
+        <div style={{ width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:6 }}>SHARE CHALLENGE LINK</div>
+          <div style={{ background:t.bg, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, border:`1px solid ${t.border}` }}>
+            <span style={{ fontSize:11, color:t.muted, flex:1 }}>medmcq.app/duel/xK92pQ</span>
+            <button style={{ background:t.accent, border:"none", borderRadius:8, padding:"4px 10px", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer" }}>Copy</button>
+          </div>
+        </div>
+        {/* Notify options */}
+        <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:8 }}>
+          {[{icon:"💬", label:"Send via WhatsApp"},{icon:"📩", label:"Send via SMS"},{icon:"📋", label:"Copy Link"}].map(o=>(
+            <button key={o.label} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:18 }}>{o.icon}</span>
+              <span style={{ fontSize:13, fontWeight:600, color:t.text }}>{o.label}</span>
+            </button>
+          ))}
+        </div>
+        {/* Simulate friend responding */}
+        <button onClick={()=>setPhase("result")} style={{ width:"100%", background:t.accentMuted, border:`1px solid ${t.accent}`, borderRadius:12, padding:12, color:t.accent, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+          👀 Preview Results (Demo)
+        </button>
+        <button onClick={()=>{ resetDuel(); setPhase("lobby"); setSelected(null); }} style={{ background:"none", border:"none", color:t.muted, fontSize:12, cursor:"pointer" }}>← Back to Lobby</button>
+      </div>
+    );
+  }
+
+  // ── WAITING (live invite flow) ──
+  if (phase === "waiting") {
+    return <LiveInviteFlow t={t} selected={selected} subject={subject} numQs={numQs}
+      onAccepted={() => { resetDuel(); setPhase("battle"); }}
+      onDeclined={() => setPhase("setup")}
+      onCancel={() => setPhase("setup")}
+    />;
+  }
+
+  // ── BATTLE ──
+  if (phase === "battle") {
+    const myScore  = myAnswers.filter(a=>a.correct).length;
+    const botScore = botAnswers.slice(0, current).filter(a=>a.correct).length;
+    const timerPct = (timeLeft / 20) * 100;
+    const timerColor = timeLeft > 8 ? "#22c55e" : timeLeft > 4 ? t.warning : "#ef4444";
+    const answered = pick !== null;
+
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+        {/* Duel header */}
+        <div style={{ padding:"10px 16px 8px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+          {/* Scoreboard */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ fontWeight:800, color:t.text, fontSize:20 }}>{myScore}</div>
+              <div style={{ fontSize:10, color:t.muted, fontWeight:600 }}>{myName.split(" ")[0]}</div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:t.accent }}>Q {current+1}/{qs.length}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                <ClockIcon color={timerColor} size={12}/>
+                <span style={{ fontWeight:800, color:timerColor, fontSize:13 }}>{timeLeft}s</span>
+              </div>
+            </div>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ fontWeight:800, color:"#ef4444", fontSize:20 }}>{botScore}</div>
+              <div style={{ fontSize:10, color:t.muted, fontWeight:600 }}>{selected?.name.split(" ")[0]}</div>
+            </div>
+          </div>
+          {/* Timer bar */}
+          <div style={{ height:4, borderRadius:99, background:t.border, overflow:"hidden" }}>
+            <div style={{ width:`${timerPct}%`, height:"100%", background:timerColor, borderRadius:99, transition:"width 1s linear" }}/>
+          </div>
+          {/* Q progress */}
+          <div style={{ display:"flex", gap:3, marginTop:5 }}>
+            {qs.map((_,i) => (
+              <div key={i} style={{ flex:1, height:3, borderRadius:99, background: i<current ? t.accent : i===current ? t.accent+"88" : t.border }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Bot thinking indicator */}
+        <div style={{ padding:"8px 16px 0", display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ width:24, height:24, borderRadius:99, background:"#ef444433", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#ef4444", flexShrink:0 }}>{selected?.avatar}</div>
+          {botProgress > current ? (
+            <div style={{ fontSize:11, color:"#ef4444", fontWeight:600 }}>✓ Answered!</div>
+          ) : (
+            <div style={{ fontSize:11, color:t.muted, display:"flex", alignItems:"center", gap:6 }}>
+              <span>Answering</span>
+              <span style={{ display:"flex", gap:3 }}>
+                {[0,1,2].map(i => <span key={i} style={{ display:"inline-block", width:5, height:5, borderRadius:99, background:t.muted, animation:`pulse${i} .7s ease-in-out ${i*0.2}s infinite alternate` }}/>)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Question */}
+        <div style={{ flex:1, overflowY:"auto", padding:"10px 16px" }}>
+          <div style={{ background:t.card, borderRadius:16, padding:14, border:`1px solid ${t.border}`, marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:t.text, lineHeight:1.6 }}>{q.q}</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {q.options.map((opt,i) => {
+              let bg=t.card, border=t.border, color=t.text;
+              if (answered) {
+                if (i===q.answer) { bg="#22c55e22"; border="#22c55e"; color="#22c55e"; }
+                else if (i===pick && pick!==q.answer) { bg="#ef444422"; border="#ef4444"; color="#ef4444"; }
+              } else if (pick===i) {
+                bg=t.accentMuted; border=t.accent; color=t.accent;
+              }
+              return (
+                <button key={i} disabled={answered} onClick={()=>{ setPick(i); setTimeout(()=>handleAnswer(i),300); }} style={{ background:bg, border:`2px solid ${border}`, borderRadius:12, padding:"10px 14px", cursor:answered?"default":"pointer", display:"flex", alignItems:"center", gap:10, transition:"all .15s", textAlign:"left" }}>
+                  <div style={{ width:30, height:30, borderRadius:8, background: i===q.answer&&answered?"#22c55e": i===pick&&answered&&pick!==q.answer?"#ef4444":t.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    {i===q.answer&&answered ? <CheckIcon color="#fff" size={14}/> : <span style={{ fontSize:12, fontWeight:700, color:t.muted }}>{String.fromCharCode(65+i)}</span>}
+                  </div>
+                  <span style={{ fontSize:13, color, fontWeight:answered&&(i===q.answer||i===pick)?700:400, lineHeight:1.4 }}>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Skip */}
+        {!answered && (
+          <div style={{ padding:"4px 16px 10px" }}>
+            <button onClick={()=>handleAnswer(null,true)} style={{ width:"100%", background:"none", border:`1px solid ${t.border}`, borderRadius:12, padding:10, color:t.muted, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+              Skip →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── RESULT ──
+  if (phase === "result") {
+    const myScore  = myAnswers.filter(a=>a.correct).length;
+    const botScore = botAnswers.slice(0, qs.length).filter(a=>a.correct).length;
+    const won = myScore > botScore;
+    const draw = myScore === botScore;
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+        {/* Result banner */}
+        <div style={{ background: won ? "linear-gradient(135deg,#22c55e22,#22c55e44)" : draw ? `linear-gradient(135deg,${t.accentMuted},${t.accent}33)` : "linear-gradient(135deg,#ef444422,#ef444444)", padding:"28px 20px 20px", textAlign:"center", borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ fontSize:60, marginBottom:6 }}>{won?"🏆":draw?"🤝":"💔"}</div>
+          <div style={{ fontSize:26, fontWeight:900, color: won? MED.green :draw? MED.cyan : MED.red }}>{won?"Victory!":draw?"Draw!":"Defeated"}</div>
+          <div style={{ fontSize:13, color:t.muted, marginTop:4 }}>{won?"You outsmarted your opponent!":draw?"Neck and neck!":"Better luck next time!"}</div>
+        </div>
+
+        {/* Score comparison */}
+        <div style={{ margin:"14px 16px", background:t.card, borderRadius:20, padding:20, border:`1px solid ${t.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ width:52, height:52, borderRadius:99, background:t.accent, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:20, margin:"0 auto 6px" }}>A</div>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{myName.split(" ")[0]}</div>
+              <div style={{ fontSize:32, fontWeight:900, color:won? MED.green :draw? MED.cyan : MED.red, marginTop:4 }}>{myScore}</div>
+              <div style={{ fontSize:11, color:t.muted }}>correct</div>
+            </div>
+            <div style={{ fontSize:22, color:t.muted }}>VS</div>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ width:52, height:52, borderRadius:99, background:"#ef444422", border:`2px solid #ef4444`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#ef4444", fontSize:20, margin:"0 auto 6px" }}>{selected?.avatar}</div>
+              <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{selected?.name.split(" ")[0]}</div>
+              <div style={{ fontSize:32, fontWeight:900, color:!won&&!draw? MED.green :draw? MED.cyan : MED.red, marginTop:4 }}>{botScore}</div>
+              <div style={{ fontSize:11, color:t.muted }}>correct</div>
+            </div>
+          </div>
+          <div style={{ marginTop:16, display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+            {[
+              { label:"XP Gained", val: won?"+200":draw?"+100":"+50", color: MED.green },
+              { label:"Accuracy", val:`${Math.round(myScore/qs.length*100)}%`, color: MED.cyan },
+              { label:"Rank Δ", val: won?"+2":draw?"—":"-1", color: won? MED.green :draw?t.muted: MED.red },
+            ].map(s=>(
+              <div key={s.label} style={{ background:t.bg, borderRadius:10, padding:10, textAlign:"center", border:`1px solid ${t.border}` }}>
+                <div style={{ fontSize:16, fontWeight:900, color:s.color }}>{s.val}</div>
+                <div style={{ fontSize:10, color:t.muted }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Q-by-Q breakdown */}
+        <div style={{ padding:"0 16px 8px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>QUESTION BREAKDOWN</div>
+          {qs.map((dq, i) => {
+            const mine = myAnswers[i];
+            const bot  = botAnswers[i];
+            return (
+              <div key={i} style={{ background:t.card, borderRadius:12, padding:"10px 14px", marginBottom:6, border:`1px solid ${t.border}`, display:"flex", alignItems:"flex-start", gap:10 }}>
+                <span style={{ fontSize:16, flexShrink:0 }}>{mine?.correct?"✅":"❌"}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, color:t.text, lineHeight:1.4, marginBottom:4 }}>{dq.q}</div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <span style={{ fontSize:10, color:mine?.correct?"#22c55e":"#ef4444" }}>You: {mine?.correct?"Correct":"Wrong"}</span>
+                    <span style={{ fontSize:10, color:bot?.correct?"#22c55e":"#ef4444" }}>{selected?.name.split(" ")[0]}: {bot?.correct?"Correct":"Wrong"}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ padding:"4px 16px 12px", display:"flex", gap:8 }}>
+          <button onClick={() => { resetDuel(); setPhase("setup"); }} style={{ flex:1, background:t.accent, border:"none", borderRadius:12, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>Rematch</button>
+          <button onClick={() => { resetDuel(); setPhase("lobby"); setSelected(null); }} style={{ flex:1, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:14, color:t.text, fontWeight:700, fontSize:14, cursor:"pointer" }}>Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ─── SCREEN: Leaderboard ─────────────────────────────────────────────────────
+
+function RankScreen({ t }) {
+  const [tab, setTab] = useState("global");
+  const tabs = ["global","subject","weekly"];
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+      <div style={{ padding:"16px 16px 0", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:800, color: t.text, fontSize:18, marginBottom:10 }}>Leaderboard</div>
+        <div style={{ display:"flex", gap:0, background: t.bg, borderRadius:10, padding:3, marginBottom:0 }}>
+          {tabs.map(tb => (
+            <button key={tb} onClick={()=>setTab(tb)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", cursor:"pointer", background: tab===tb ? t.accent : "none", color: tab===tb ? "#fff" : t.muted, fontWeight:700, fontSize:11, textTransform:"capitalize" }}>{tb}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Top 3 podium */}
+      <div style={{ padding:"16px 16px 0", display:"flex", justifyContent:"center", alignItems:"flex-end", gap:8 }}>
+        {[LEADERBOARD[1], LEADERBOARD[0], LEADERBOARD[2]].map((u, i) => {
+          const heights = [80, 100, 70];
+          const podiumColors = ["#c0c0c0","#ffd700","#cd7f32"];
+          const pos = [2,1,3];
+          return (
+            <div key={u.name} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+              <div style={{ fontSize:24 }}>{u.badge}</div>
+              <div style={{ width:48, height:48, borderRadius:99, background: podiumColors[i]+"33", border:`2px solid ${podiumColors[i]}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color: t.text, fontSize:16 }}>{u.name[0]}</div>
+              <div style={{ fontSize:11, fontWeight:700, color: t.text }}>{u.name.split(" ")[0]}</div>
+              <div style={{ fontSize:10, color: t.muted }}>{u.score.toLocaleString()} XP</div>
+              <div style={{ width:"100%", height:heights[i], background: podiumColors[i]+"44", borderRadius:"8px 8px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color: podiumColors[i], fontSize:18 }}>#{pos[i]}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Full list */}
+      <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:6 }}>
+        {LEADERBOARD.map(u => (
+          <div key={u.rank} style={{ background: u.isMe ? t.accentMuted : t.card, border:`1px solid ${u.isMe ? t.accent : t.border}`, borderRadius:14, padding:"10px 14px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:28, fontWeight:900, color: u.rank<=3 ? ["#ffd700","#c0c0c0","#cd7f32"][u.rank-1] : t.muted, fontSize:14, textAlign:"center" }}>#{u.rank}</div>
+            <div style={{ width:38, height:38, borderRadius:99, background: u.isMe ? t.accent : t.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color: u.isMe?"#fff":t.muted, flexShrink:0 }}>{u.name[0]}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ fontWeight:700, color: t.text, fontSize:13 }}>{u.name}</span>
+                {u.isMe && <Tag label="YOU" color={t.accent}/>}
+              </div>
+              <div style={{ fontSize:11, color: t.muted }}>{u.subject} · 🔥{u.streak} streak</div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontWeight:800, color: t.accent, fontSize:13 }}>{u.score.toLocaleString()}</div>
+              <div style={{ fontSize:10, color: t.muted }}>XP</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── SCREEN: Stats / Analytics ───────────────────────────────────────────────
+
+function StatsScreen({ t, setScreen }) {
+  const [subject, setSubject] = useState("all");
+  const [showShare, setShowShare] = useState(false);
+  
+
+  const miniBar = (val, max, color) => (
+    <div style={{ height:6, borderRadius:99, background: t.border, overflow:"hidden", marginTop:4 }}>
+      <div style={{ width:`${(val/max)*100}%`, height:"100%", background: color, borderRadius:99 }}/>
+    </div>
+  );
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background: t.bg }}>
+      <div style={{ padding:"16px", background: t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontWeight:800, color: t.text, fontSize:18 }}>Performance</div>
+            <div style={{ fontSize:12, color: t.muted, marginTop:2 }}>Your analytics overview</div>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={()=>setScreen&&setScreen("mockresult")} style={{ background:MED.red+"18", border:`1px solid ${MED.red}55`, borderRadius:12, padding:"8px 12px", cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
+              <span style={{ fontSize:12 }}>📝</span>
+              <span style={{ fontSize:11, fontWeight:700, color:MED.red }}>Mock</span>
+            </button>
+            <button onClick={()=>setShowShare(true)} className="glow-green" style={{ background:MED.green+"18", border:`1px solid ${MED.green}55`, borderRadius:12, padding:"8px 12px", cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
+              <span style={{ fontSize:12 }}>📤</span>
+              <span style={{ fontSize:11, fontWeight:700, color:MED.green }}>Share</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div style={{ padding:"12px 16px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+        {[
+          { label:"Questions\nAttempted", value:"1,840", color: MED.violet, icon:"📋" },
+          { label:"Accuracy\nRate", value:"74%", color: MED.green, icon:"🎯" },
+          { label:"Current\nRank", value:"#4", color: MED.amber, icon:"🏆" },
+          { label:"Day\nStreak", value:"29", color: MED.cyan, icon:"🔥" },
+        ].map(s => (
+          <div key={s.label} style={{ background: t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14 }}>
+            <div style={{ fontSize:22, marginBottom:6 }}>{s.icon}</div>
+            <div style={{ fontSize:24, fontWeight:900, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize:11, color: t.muted, whiteSpace:"pre-line" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Difficulty breakdown */}
+      <div style={{ margin:"0 16px 12px", background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:700, color: t.text, fontSize:14, marginBottom:12 }}>Difficulty Breakdown</div>
+        {[
+          { label:"Easy", val:720, total:800, color:"#22c55e" },
+          { label:"Medium", val:840, total:1200, color:"#f59e0b" },
+          { label:"Hard", val:280, total:600, color:"#ef4444" },
+        ].map(d => (
+          <div key={d.label} style={{ marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
+              <span style={{ fontWeight:600, color: t.text }}>{d.label}</span>
+              <span style={{ color: t.muted }}>{d.val}/{d.total} · {Math.round(d.val/d.total*100)}%</span>
+            </div>
+            {miniBar(d.val, d.total, d.color)}
+          </div>
+        ))}
+      </div>
+
+      {/* Subject accuracy */}
+      <div style={{ margin:"0 16px 12px", background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:700, color: t.text, fontSize:14, marginBottom:12 }}>Subject Accuracy</div>
+        {SUBJECTS.map(s => {
+          const acc = Math.round(50 + Math.random()*40);
+          return (
+            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <span style={{ width:24, textAlign:"center", fontSize:16 }}>{s.icon}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:3 }}>
+                  <span style={{ color: t.text, fontWeight:600 }}>{s.name}</span>
+                  <span style={{ color: t.muted }}>{acc}%</span>
+                </div>
+                {miniBar(acc, 100, s.color)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Weekly activity (simple dots) */}
+      <div style={{ margin:"0 16px 12px", background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:700, color: t.text, fontSize:14, marginBottom:12 }}>Weekly Activity</div>
+        <div style={{ display:"flex", gap:6, justifyContent:"space-between" }}>
+          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day, i) => {
+            const vals = [45,80,60,95,70,30,55];
+            return (
+              <div key={day} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <div style={{ width:"100%", height:60, borderRadius:6, background: t.border, position:"relative", overflow:"hidden" }}>
+                  <div style={{ position:"absolute", bottom:0, left:0, right:0, height:`${vals[i]}%`, background:`linear-gradient(180deg,${t.accent},${t.accent}88)`, borderRadius:6 }}/>
+                </div>
+                <span style={{ fontSize:9, color: t.muted }}>{day}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Topics to Revise */}
+      <div style={{ margin:"0 16px 12px", background: t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:700, color: t.text, fontSize:14, marginBottom:12 }}>Topics to Revise</div>
+        {[
+          { name:"Nerve injuries (Anatomy)", pct:32, color: MED.red },
+          { name:"Renal physiology", pct:41, color: MED.amber },
+          { name:"Enzyme kinetics (Biochem)", pct:45, color: MED.amber },
+          { name:"Anti-TB drugs", pct:52, color: MED.violet },
+          { name:"Granulomatous inflammation", pct:55, color: MED.violet },
+        ].map(tp => (
+          <div key={tp.name} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+            <div style={{ width:6, height:6, borderRadius:99, background: tp.color, flexShrink:0 }}/>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:11 }}>
+                <span style={{ color: t.text }}>{tp.name}</span>
+                <span style={{ color: tp.color, fontWeight:700 }}>{tp.pct}%</span>
+              </div>
+              {miniBar(tp.pct, 100, tp.color)}
+            </div>
+          </div>
+        ))}
+      </div>
+      {showShare && <ShareSheet t={t} onClose={()=>setShowShare(false)} rank={4} score={74} subject="All Subjects"/>}
+    </div>
+  );
+}
+
+// ─── Science of Learning Data ────────────────────────────────────────────────
+
+const SR_CARDS = [
+  { id:1, subject:"Pharmacology", topic:"Beta Blockers", q:"Which beta-blocker has ISA and is cardioselective?", answer:"Acebutolol", due:"now", interval:1, ease:2.1, reps:3 },
+  { id:2, subject:"Anatomy", topic:"Upper Limb", q:"Nerve injured in Saturday night palsy?", answer:"Radial nerve", due:"now", interval:1, ease:1.8, reps:1 },
+  { id:3, subject:"Pathology", topic:"Inflammation", q:"Hallmark cells in granulomatous inflammation?", answer:"Epithelioid cells + Langhans giant cells", due:"now", interval:3, ease:2.5, reps:5 },
+  { id:4, subject:"Physiology", topic:"Renal", q:"Formula for GFR using creatinine clearance?", answer:"UV/P — urine conc × flow / plasma conc", due:"1h", interval:7, ease:2.3, reps:8 },
+  { id:5, subject:"Biochemistry", topic:"Vitamins", q:"Vitamin causing pellagra when deficient?", answer:"Niacin (B3)", due:"3h", interval:21, ease:2.8, reps:12 },
+  { id:6, subject:"Microbiology", topic:"Bacteriology", q:"Gram-positive cocci in clusters?", answer:"Staphylococcus", due:"tomorrow", interval:14, ease:2.6, reps:9 },
+];
+
+const DAILY_QUESTS = [
+  { id:"q1", icon:"⚡", label:"Answer 10 questions", target:10, done:7,  xp:100, color: MED.cyan   },
+  { id:"q2", icon:"🎯", label:"Score 80%+ in a quiz",  target:1,  done:0,  xp:150, color: MED.green  },
+  { id:"q3", icon:"🔥", label:"Review 5 spaced cards", target:5,  done:5,  xp:75,  color: MED.amber  },
+];
+
+const STUDY_GROUPS = [
+  { id:1, name:"Batch 2022 — AIIMS Prep",  members:8,  streak:14, subject:"All",         avatar:["P","R","S","A"], active:3, rank:2  },
+  { id:2, name:"Pharmacology Grind",        members:5,  streak:7,  subject:"Pharmacology",avatar:["K","M","D","R"], active:2, rank:5  },
+  { id:3, name:"Path Masters",              members:6,  streak:21, subject:"Pathology",   avatar:["S","A","P","K"], active:4, rank:1  },
+];
+
+const PEER_MNEMONICS = {
+  1: [
+    { user:"Priya S.", text:"RADIAL winds around: think 'Spiral staircase' → Spiral groove → Radial nerve", likes:34 },
+    { user:"Rohan K.", text:"Mid-shaft = Mid-arm = Radial. Rule of 3 Rs: Radial, Rear (spiral groove), fRacture", likes:28 },
+  ],
+  2: [
+    { user:"Sneha M.", text:"SA = Super Automatic — fastest rate wins pacemaker crown 👑", likes:52 },
+  ],
+  3: [
+    { user:"Aditya R.", text:"Acebu-TOLOL: 'tol' sounds like 'tolerate' — tolerates ISA unlike pure blockers", likes:19 },
+  ],
+};
+
+// ─── Spaced Repetition Screen ─────────────────────────────────────────────────
+
+function SpacedRepScreen({ t }) {
+  const [phase, setPhase]       = useState("queue");   // queue | recall | rate | done
+  const [cardIdx, setCardIdx]   = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [confidence, setConf]   = useState(null);
+  const [sessionDone, setSessionDone] = useState([]);
+
+  const due = SR_CARDS.filter(c => c.due === "now");
+  const upcoming = SR_CARDS.filter(c => c.due !== "now");
+  const card = due[cardIdx];
+
+  const intervals = {
+    again: "10 min", hard: "1 day", good: "3 days", easy: "7 days"
+  };
+  const confColors = {
+    again: MED.red, hard: MED.amber, good: MED.cyan, easy: MED.green
+  };
+  const confEmoji = { again:"😰", hard:"😟", good:"🙂", easy:"😎" };
+
+  function handleRate(rating) {
+    setSessionDone(d => [...d, { card, rating }]);
+    setConf(null); setRevealed(false);
+    if (cardIdx + 1 < due.length) {
+      setCardIdx(i => i + 1);
+    } else {
+      setPhase("done");
+    }
+  }
+
+  // Forgetting curve mini-chart
+  const ForgettingCurve = ({ ease }) => {
+    const pts = [100, 100*Math.exp(-1/ease), 100*Math.exp(-3/ease), 100*Math.exp(-7/ease), 100*Math.exp(-14/ease)];
+    const w = 100, h = 36;
+    const xs = [0, 25, 50, 75, 100];
+    const path = pts.map((p,i) => `${i===0?"M":"L"}${xs[i]},${h - (p/100)*h}`).join(" ");
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ opacity:.6 }}>
+        <path d={path} fill="none" stroke={MED.cyan} strokeWidth="1.5" strokeLinecap="round"/>
+        <circle cx={xs[0]} cy={h-(pts[0]/100)*h} r="3" fill={MED.cyan}/>
+      </svg>
+    );
+  };
+
+  if (phase === "done") {
+    const correct = sessionDone.filter(d => d.rating === "good" || d.rating === "easy").length;
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:t.bg, paddingBottom:80, padding:"0 24px 80px", gap:16 }}>
+        <div style={{ fontSize:56 }}>🧠</div>
+        <div style={{ fontWeight:900, color:t.text, fontSize:22 }}>Session Complete!</div>
+        <div style={{ fontSize:13, color:t.muted, textAlign:"center" }}>Your memory is now reinforced<br/>at optimal intervals</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, width:"100%" }}>
+          {[
+            { label:"Reviewed", val:due.length, color:t.accent },
+            { label:"Retained", val:correct, color:MED.green },
+            { label:"XP Earned", val:due.length*75, color:MED.amber },
+          ].map(s => (
+            <div key={s.label} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, textAlign:"center" }}>
+              <div style={{ fontSize:22, fontWeight:900, color:s.color }}>{s.val}</div>
+              <div style={{ fontSize:10, color:t.muted }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ width:"100%", background:t.card, border:`1px solid ${MED.cyan}33`, borderRadius:14, padding:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>NEXT REVIEWS</div>
+          {upcoming.slice(0,3).map(c => (
+            <div key={c.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <span style={{ fontSize:12, color:t.text }}>{c.topic}</span>
+              <span style={{ fontSize:11, fontWeight:700, color:MED.amber }}>in {c.due}</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>{setPhase("queue");setCardIdx(0);setSessionDone([]);}} style={{ width:"100%", background:t.accent, border:"none", borderRadius:12, padding:14, color:MED.bg0, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+          Back to Queue
+        </button>
+      </div>
+    );
+  }
+
+  // Queue view
+  if (phase === "queue") {
+    return (
+      <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+        <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ fontWeight:800, color:t.text, fontSize:18 }}>Spaced Repetition</div>
+          <div style={{ fontSize:12, color:t.muted, marginTop:2 }}>Review at the perfect moment to beat forgetting</div>
+        </div>
+
+        {/* Due now banner */}
+        <div style={{ margin:"12px 16px 0" }}>
+          <div className="glow-green" style={{ background:`linear-gradient(135deg,${MED.green}18,${MED.cyan}18)`, border:`1px solid ${MED.green}55`, borderRadius:16, padding:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:MED.green, letterSpacing:1 }}>DUE NOW</div>
+                <div style={{ fontSize:26, fontWeight:900, color:t.text }}>{due.length} cards</div>
+                <div style={{ fontSize:12, color:t.muted }}>Est. {due.length * 2} min · +{due.length*75} XP</div>
+              </div>
+              <div style={{ position:"relative" }}>
+                <svg width="70" height="70" viewBox="0 0 70 70" style={{ transform:"rotate(-90deg)" }}>
+                  <circle cx="35" cy="35" r="28" fill="none" stroke={t.border} strokeWidth="5"/>
+                  <circle cx="35" cy="35" r="28" fill="none" stroke={MED.green} strokeWidth="5"
+                    strokeDasharray={`${(due.length/(due.length+upcoming.length))*176} 176`} strokeLinecap="round"/>
+                </svg>
+                <span style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", fontSize:14, fontWeight:900, color:MED.green }}>{due.length}</span>
+              </div>
+            </div>
+            <button onClick={()=>setPhase("recall")} style={{ width:"100%", background:MED.green, border:"none", borderRadius:12, padding:12, color:MED.bg0, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+              Start Review →
+            </button>
+          </div>
+        </div>
+
+        {/* Forgetting curve explainer */}
+        <div style={{ margin:"12px 16px 0", background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}` }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:t.text }}>Your Memory Curve</div>
+            <div style={{ fontSize:10, color:MED.cyan }}>Ebbinghaus Model</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:48 }}>
+            {["Day 1","Day 3","Day 7","Day 14","Day 30"].map((d,i) => {
+              const vals = [100,70,50,30,15];
+              return (
+                <div key={d} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                  <div style={{ width:"100%", height:`${vals[i]*0.44}px`, background:`linear-gradient(180deg,${MED.cyan},${MED.cyan}44)`, borderRadius:"4px 4px 0 0" }}/>
+                  <div style={{ fontSize:8, color:t.muted, textAlign:"center" }}>{d}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize:11, color:t.muted, marginTop:6, lineHeight:1.5 }}>Without review, you forget ~70% in 24h. Spaced repetition cuts this to &lt;10%.</div>
+        </div>
+
+        {/* Upcoming cards */}
+        <div style={{ padding:"12px 16px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>UPCOMING</div>
+          {upcoming.map(c => (
+            <div key={c.id} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:"10px 14px", marginBottom:6, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:t.border, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:t.muted, flexShrink:0, textAlign:"center", lineHeight:1.2 }}>{c.due}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:t.text }}>{c.topic}</div>
+                <div style={{ fontSize:11, color:t.muted }}>{c.subject} · {c.reps} reps</div>
+              </div>
+              <div style={{ display:"flex", gap:3 }}>
+                {[...Array(Math.min(c.reps,5))].map((_,i)=><div key={i} style={{ width:5, height:5, borderRadius:99, background:MED.green }}/>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Recall phase — show question, hide answer
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+      {/* Header */}
+      <div style={{ padding:"12px 16px 10px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <button onClick={()=>setPhase("queue")} style={{ background:"none", border:"none", cursor:"pointer", color:t.muted, fontSize:12 }}>✕ Exit</button>
+          <span style={{ fontWeight:700, color:t.text, fontSize:13 }}>{cardIdx+1} / {due.length}</span>
+          <span style={{ fontSize:11, color:MED.cyan }}>🧠 Active Recall</span>
+        </div>
+        <div style={{ display:"flex", gap:3 }}>
+          {due.map((_,i) => <div key={i} style={{ flex:1, height:3, borderRadius:99, background: i<cardIdx?MED.green:i===cardIdx?MED.green+"88":t.border }}/>)}
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"16px" }}>
+        {/* Subject tag */}
+        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+          <Tag label={card.subject} color={t.accent}/>
+          <Tag label={card.topic} color={t.muted}/>
+          <Tag label={`rep #${card.reps}`} color={MED.violet}/>
+        </div>
+
+        {/* Question card */}
+        <div style={{ background:t.card, borderRadius:16, padding:18, border:`1px solid ${t.border}`, marginBottom:12 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>RECALL THIS</div>
+          <div style={{ fontSize:15, fontWeight:600, color:t.text, lineHeight:1.6 }}>{card.q}</div>
+        </div>
+
+        {/* Confidence pre-rating (metacognition) */}
+        {!revealed && (
+          <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${MED.violet}44`, marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:MED.violet, marginBottom:10 }}>HOW WELL DO YOU KNOW THIS?</div>
+            <div style={{ display:"flex", gap:6 }}>
+              {[
+                { id:"blank", label:"No idea", color:MED.red },
+                { id:"partial", label:"Vaguely", color:MED.amber },
+                { id:"sure", label:"Pretty sure", color:MED.cyan },
+                { id:"nailed", label:"100%", color:MED.green },
+              ].map(c => (
+                <button key={c.id} onClick={()=>{ setConf(c.id); setRevealed(true); }} style={{ flex:1, background:confidence===c.id?c.color+"22":t.bg, border:`1.5px solid ${confidence===c.id?c.color:t.border}`, borderRadius:10, padding:"8px 4px", cursor:"pointer", textAlign:"center" }}>
+                  <div style={{ fontSize:16 }}>{c.id==="blank"?"😰":c.id==="partial"?"😟":c.id==="sure"?"🙂":"😎"}</div>
+                  <div style={{ fontSize:9, color:c.color, fontWeight:700, marginTop:3 }}>{c.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Answer reveal */}
+        {revealed && (
+          <>
+            <div style={{ background:`linear-gradient(135deg,${MED.green}18,${MED.cyan}18)`, borderRadius:14, padding:14, border:`1px solid ${MED.green}55`, marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:MED.green, marginBottom:6 }}>✓ ANSWER</div>
+              <div style={{ fontSize:15, fontWeight:700, color:t.text, lineHeight:1.5 }}>{card.answer}</div>
+            </div>
+
+            {/* Peer mnemonic */}
+            {PEER_MNEMONICS[card.id] && (
+              <div style={{ background:t.card, borderRadius:12, padding:12, border:`1px solid ${MED.violet}44`, marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:MED.violet, marginBottom:6 }}>💡 PEER MNEMONIC</div>
+                <div style={{ fontSize:12, color:t.text, lineHeight:1.5, fontStyle:"italic" }}>"{PEER_MNEMONICS[card.id][0].text}"</div>
+                <div style={{ fontSize:10, color:t.muted, marginTop:4 }}>— {PEER_MNEMONICS[card.id][0].user} · {PEER_MNEMONICS[card.id][0].likes} likes</div>
+              </div>
+            )}
+
+            {/* Rate how it went */}
+            <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}` }}>
+              <div style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:10 }}>HOW DID IT GO?</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:6 }}>
+                {["again","hard","good","easy"].map(r => (
+                  <button key={r} onClick={()=>handleRate(r)} style={{ background:confColors[r]+"18", border:`1.5px solid ${confColors[r]}55`, borderRadius:10, padding:"10px 4px", cursor:"pointer", textAlign:"center" }}>
+                    <div style={{ fontSize:18 }}>{confEmoji[r]}</div>
+                    <div style={{ fontSize:10, fontWeight:700, color:confColors[r], marginTop:3, textTransform:"capitalize" }}>{r}</div>
+                    <div style={{ fontSize:9, color:t.muted, marginTop:1 }}>{intervals[r]}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Daily Quest Screen ───────────────────────────────────────────────────────
+
+function QuestScreen({ t, studentName }) {
+  const [quests, setQuests]         = useState(DAILY_QUESTS);
+  const [bonusUnlocked, setBonusUnlocked] = useState(false);
+  const [showReward, setShowReward] = useState(null);
+  const allDone = quests.every(q => q.done >= q.target);
+
+  function completeQuest(id) {
+    setQuests(qs => qs.map(q => q.id===id ? {...q, done: Math.min(q.target, q.done+1)} : q));
+    const q = quests.find(q=>q.id===id);
+    if (q && q.done+1 >= q.target) setShowReward(q);
+  }
+
+  const totalXP = quests.reduce((a,q) => a + (q.done >= q.target ? q.xp : 0), 0);
+  const maxXP   = quests.reduce((a,q) => a + q.xp, 0);
+  const resetHour = new Date(); resetHour.setHours(24,0,0,0);
+  const hoursLeft = Math.round((resetHour - new Date()) / 3600000);
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+      {/* Reward popup */}
+      {showReward && (
+        <div style={{ position:"fixed", inset:0, zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.8)" }} onClick={()=>setShowReward(null)}>
+          <div style={{ background:t.card, borderRadius:24, padding:32, textAlign:"center", border:`2px solid ${showReward.color}`, maxWidth:280, animation:"popIn .3s ease" }}>
+            <style>{`@keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
+            <div style={{ fontSize:56, marginBottom:8 }}>🎉</div>
+            <div style={{ fontWeight:900, color:showReward.color, fontSize:22 }}>Quest Complete!</div>
+            <div style={{ fontSize:14, color:t.text, marginTop:4 }}>{showReward.label}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:MED.amber, marginTop:12 }}>+{showReward.xp} XP</div>
+            <div style={{ fontSize:12, color:t.muted, marginTop:4 }}>Tap to continue</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div>
+            <div style={{ fontWeight:800, color:t.text, fontSize:18 }}>Daily Quests</div>
+            <div style={{ fontSize:12, color:t.muted, marginTop:2 }}>Resets in {hoursLeft}h · {totalXP}/{maxXP} XP earned</div>
+          </div>
+          <div style={{ background:MED.amber+"22", border:`1px solid ${MED.amber}55`, borderRadius:12, padding:"6px 12px", textAlign:"center" }}>
+            <div style={{ fontSize:18, fontWeight:900, color:MED.amber }}>{totalXP}</div>
+            <div style={{ fontSize:9, color:t.muted }}>XP Today</div>
+          </div>
+        </div>
+        {/* Overall progress */}
+        <div style={{ marginTop:10, height:6, borderRadius:99, background:t.border, overflow:"hidden" }}>
+          <div style={{ width:`${(totalXP/maxXP)*100}%`, height:"100%", background:`linear-gradient(90deg,${MED.green},${MED.cyan})`, borderRadius:99, transition:"width .4s", boxShadow:`0 0 8px ${MED.green}88` }}/>
+        </div>
+      </div>
+
+      <div style={{ padding:"12px 16px" }}>
+        {/* Quest cards */}
+        {quests.map(q => {
+          const done = q.done >= q.target;
+          const pct  = Math.min(100, (q.done/q.target)*100);
+          return (
+            <div key={q.id} style={{ background:t.card, border:`2px solid ${done?q.color+"88":t.border}`, borderRadius:16, padding:14, marginBottom:10, position:"relative", overflow:"hidden" }}>
+              {done && <div style={{ position:"absolute", top:0, right:0, bottom:0, left:0, background:q.color+"08", pointerEvents:"none" }}/>}
+              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ width:44, height:44, borderRadius:12, background:q.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{done?"✅":q.icon}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <span style={{ fontWeight:700, color:done?q.color:t.text, fontSize:13 }}>{q.label}</span>
+                    <span style={{ fontWeight:800, color:MED.amber, fontSize:13 }}>+{q.xp} XP</span>
+                  </div>
+                  <div style={{ marginTop:5, height:5, borderRadius:99, background:t.border, overflow:"hidden" }}>
+                    <div style={{ width:`${pct}%`, height:"100%", background:q.color, borderRadius:99, transition:"width .3s", boxShadow:done?`0 0 8px ${q.color}88`:"none" }}/>
+                  </div>
+                  <div style={{ fontSize:11, color:t.muted, marginTop:4 }}>{q.done}/{q.target} {done?"— Complete!":""}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Bonus quest unlocked when all done */}
+        {allDone && (
+          <div className="glow-green" style={{ background:`linear-gradient(135deg,${MED.green}22,${MED.amber}22)`, border:`2px solid ${MED.green}`, borderRadius:16, padding:14, marginBottom:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:44, height:44, borderRadius:12, background:MED.green+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>⚡</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:800, color:MED.green, fontSize:13 }}>BONUS UNLOCKED — Perfect Day!</div>
+                <div style={{ fontSize:12, color:t.muted, marginTop:2 }}>Complete a 20-Q mock for 300 bonus XP</div>
+                <div style={{ fontWeight:700, color:MED.amber, fontSize:12, marginTop:4 }}>+300 XP 🎁</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Variable reward hint */}
+        <div style={{ background:t.card, border:`1px solid ${MED.violet}44`, borderRadius:14, padding:12, marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:MED.violet, marginBottom:6 }}>🎲 MYSTERY MULTIPLIER</div>
+          <div style={{ fontSize:12, color:t.muted, lineHeight:1.5 }}>Complete tomorrow's quests for a chance at a random 2× or 3× XP bonus. You won't know until you start!</div>
+        </div>
+
+        {/* Streak freeze section */}
+        <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${MED.amber}44` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:t.text }}>🛡️ Streak Freeze</div>
+            <div style={{ background:MED.amber+"22", border:`1px solid ${MED.amber}`, borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:800, color:MED.amber }}>1 owned</div>
+          </div>
+          <div style={{ fontSize:12, color:t.muted, lineHeight:1.5, marginBottom:8 }}>Miss a day? A streak freeze auto-activates to protect your {29}-day streak. Earn more by hitting weekly goals.</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <div style={{ flex:1, background:MED.amber+"15", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
+              <div style={{ fontSize:16, fontWeight:900, color:MED.amber }}>1</div>
+              <div style={{ fontSize:10, color:t.muted }}>Freezes Left</div>
+            </div>
+            <div style={{ flex:1, background:MED.green+"15", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
+              <div style={{ fontSize:16, fontWeight:900, color:MED.green }}>29🔥</div>
+              <div style={{ fontSize:10, color:t.muted }}>Protected</div>
+            </div>
+            <div style={{ flex:2, background:t.bg, border:`1px solid ${t.border}`, borderRadius:10, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ fontSize:11, color:t.muted, textAlign:"center" }}>Earn more:<br/>7-day weekly goal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Study Groups Screen ──────────────────────────────────────────────────────
+
+function GroupsScreen({ t, studentName }) {
+  const [view, setView]         = useState("list");   // list | group | create
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([
+    { user:"Priya S.",  text:"Anyone else struggling with Conn's syndrome MCQs?", time:"2m ago",  avatar:"P" },
+    { user:"Rohan K.",  text:"Yes! High aldosterone + low renin is the key pattern", time:"1m ago",  avatar:"R" },
+    { user:"Sneha M.",  text:"Remember: HALO — Hypertension, Aldo high, Low renin, no Oedema", time:"30s ago", avatar:"S", mnemonic:true },
+  ]);
+
+  function sendMessage() {
+    if (!chatInput.trim()) return;
+    setMessages(m => [...m, { user:studentName, text:chatInput, time:"now", avatar:"A", isMe:true }]);
+    setChatInput("");
+  }
+
+  if (view === "group" && activeGroup) {
+    const grp = STUDY_GROUPS.find(g=>g.id===activeGroup);
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+        <div style={{ padding:"12px 16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={()=>setView("list")} style={{ background:"none", border:"none", cursor:"pointer", color:t.accent, fontSize:20 }}>←</button>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:800, color:t.text, fontSize:14 }}>{grp.name}</div>
+            <div style={{ fontSize:11, color:MED.green }}>● {grp.active} active · 🔥{grp.streak} day group streak</div>
+          </div>
+          <div style={{ background:MED.green+"22", border:`1px solid ${MED.green}44`, borderRadius:10, padding:"4px 10px", fontSize:11, fontWeight:700, color:MED.green }}>#{grp.rank}</div>
+        </div>
+
+        {/* Group stats */}
+        <div style={{ padding:"10px 16px 0" }}>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            {[
+              { label:"Members", val:grp.members, color:t.accent },
+              { label:"Group Streak", val:`${grp.streak}🔥`, color:MED.amber },
+              { label:"Group Rank", val:`#${grp.rank}`, color:MED.green },
+            ].map(s => (
+              <div key={s.label} style={{ flex:1, background:t.card, border:`1px solid ${t.border}`, borderRadius:10, padding:"8px 6px", textAlign:"center" }}>
+                <div style={{ fontSize:16, fontWeight:900, color:s.color }}>{s.val}</div>
+                <div style={{ fontSize:9, color:t.muted }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat / notes */}
+        <div style={{ flex:1, overflowY:"auto", padding:"0 16px 8px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>GROUP NOTES & CHAT</div>
+          {messages.map((m,i) => (
+            <div key={i} style={{ marginBottom:10, display:"flex", flexDirection:m.isMe?"row-reverse":"row", gap:8, alignItems:"flex-end" }}>
+              {!m.isMe && <div style={{ width:28, height:28, borderRadius:99, background:t.accent+"33", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:t.accent, fontSize:12, flexShrink:0 }}>{m.avatar}</div>}
+              <div style={{ maxWidth:"75%" }}>
+                {!m.isMe && <div style={{ fontSize:10, color:t.muted, marginBottom:3 }}>{m.user}</div>}
+                <div style={{ background: m.isMe?t.accent:m.mnemonic?MED.violet+"22":t.card, border:`1px solid ${m.mnemonic?MED.violet+"66":m.isMe?"transparent":t.border}`, borderRadius: m.isMe?"14px 14px 4px 14px":"14px 14px 14px 4px", padding:"10px 12px" }}>
+                  {m.mnemonic && <div style={{ fontSize:9, fontWeight:700, color:MED.violet, marginBottom:4 }}>💡 MNEMONIC</div>}
+                  <div style={{ fontSize:13, color: m.isMe?MED.bg0:m.mnemonic?MED.violet:t.text, lineHeight:1.5 }}>{m.text}</div>
+                </div>
+                <div style={{ fontSize:9, color:t.muted, marginTop:2, textAlign:m.isMe?"right":"left" }}>{m.time}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Input */}
+        <div style={{ padding:"8px 16px 12px", background:t.card, borderTop:`1px solid ${t.border}`, display:"flex", gap:8 }}>
+          <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMessage()} placeholder="Share a mnemonic or note…" style={{ flex:1, background:t.bg, border:`1px solid ${t.border}`, borderRadius:12, padding:"10px 14px", color:t.text, fontSize:13, outline:"none" }}/>
+          <button onClick={sendMessage} style={{ background:t.accent, border:"none", borderRadius:12, width:42, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MED.bg0} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+      <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ fontWeight:800, color:t.text, fontSize:18 }}>Study Groups</div>
+        <div style={{ fontSize:12, color:t.muted, marginTop:2 }}>Learn together · share mnemonics · group streaks</div>
+      </div>
+
+      {/* Social proof banner */}
+      <div style={{ margin:"12px 16px 0", background:`linear-gradient(135deg,${MED.violet}18,${MED.cyan}18)`, border:`1px solid ${MED.violet}44`, borderRadius:14, padding:12, display:"flex", gap:10, alignItems:"center" }}>
+        <div style={{ fontSize:24 }}>👥</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:t.text }}>47 students answered the Radial nerve question correctly in the last hour</div>
+          <div style={{ fontSize:11, color:t.muted, marginTop:2 }}>Social learning is proven to boost recall by 40%</div>
+        </div>
+      </div>
+
+      {/* My groups */}
+      <div style={{ padding:"12px 16px 0" }}>
+        <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>MY GROUPS</div>
+        {STUDY_GROUPS.map(g => (
+          <button key={g.id} onClick={()=>{setActiveGroup(g.id);setView("group");}} style={{ width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14, marginBottom:8, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {/* Avatars */}
+              <div style={{ display:"flex", flexDirection:"row-reverse", marginRight:4 }}>
+                {g.avatar.slice(0,4).map((av,i) => (
+                  <div key={i} style={{ width:28, height:28, borderRadius:99, background:t.accent+"33", border:`2px solid ${t.card}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:t.accent, fontSize:11, marginRight:i>0?-8:0 }}>{av}</div>
+                ))}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{g.name}</div>
+                <div style={{ fontSize:11, color:t.muted, marginTop:2 }}>{g.members} members · {g.subject}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:13, fontWeight:800, color:MED.amber }}>🔥{g.streak}</div>
+                <div style={{ fontSize:10, color:MED.green }}>● {g.active} online</div>
+              </div>
+            </div>
+            {/* Group streak bar */}
+            <div style={{ marginTop:10, height:4, borderRadius:99, background:t.border, overflow:"hidden" }}>
+              <div style={{ width:`${(g.streak/30)*100}%`, height:"100%", background:`linear-gradient(90deg,${MED.amber},${MED.green})`, borderRadius:99 }}/>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Create group */}
+      <div style={{ padding:"4px 16px 12px" }}>
+        <button style={{ width:"100%", background:"none", border:`2px dashed ${t.border}`, borderRadius:14, padding:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <span style={{ fontSize:18 }}>+</span>
+          <span style={{ fontSize:13, fontWeight:700, color:t.muted }}>Create New Group</span>
+        </button>
+      </div>
+
+      {/* Peer mnemonics section */}
+      <div style={{ padding:"0 16px 12px" }}>
+        <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>TOP PEER MNEMONICS</div>
+        {Object.values(PEER_MNEMONICS).flat().sort((a,b)=>b.likes-a.likes).slice(0,3).map((m,i) => (
+          <div key={i} style={{ background:t.card, border:`1px solid ${MED.violet}33`, borderRadius:12, padding:12, marginBottom:6 }}>
+            <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
+              <div style={{ fontSize:16, flexShrink:0 }}>💡</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, color:t.text, lineHeight:1.5, fontStyle:"italic" }}>"{m.text}"</div>
+                <div style={{ fontSize:10, color:t.muted, marginTop:4, display:"flex", justifyContent:"space-between" }}>
+                  <span>— {m.user}</span>
+                  <span style={{ color:MED.red }}>❤️ {m.likes}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Notification System ─────────────────────────────────────────────────────
+
+const NOTIFS = [
+  { id:1, type:"streak",    icon:"🔥", title:"Streak at risk!",           body:"You haven't studied today. Your 29-day streak ends in 3 hours.",  time:"2h ago",  cta:"Study Now",  color: MED.red,    unread:true  },
+  { id:2, type:"challenge", icon:"⚔️", title:"Rohan challenged you!",      body:"5 Qs · Pharmacology · Live Duel. Expires in 23 hours.",           time:"1h ago",  cta:"Accept",     color: MED.cyan,   unread:true  },
+  { id:3, type:"sr",        icon:"🧠", title:"3 cards due for review",     body:"Pathology · Pharmacology · Anatomy — review now for best retention.", time:"30m ago", cta:"Review",  color: MED.green,  unread:true  },
+  { id:4, type:"quest",     icon:"⭐", title:"Daily quest almost done!",   body:"Answer 3 more questions to complete today's quiz quest (+100 XP).", time:"20m ago", cta:"Finish",  color: MED.amber,  unread:false },
+  { id:5, type:"social",    icon:"💡", title:"Sneha shared a mnemonic",    body:"'HALO — Hypertension, Aldo high, Low renin, no Oedema' on Conn's syndrome.", time:"10m ago", cta:"See it", color: MED.violet, unread:false },
+  { id:6, type:"rank",      icon:"🏆", title:"You moved to Rank #3!",      body:"You overtook Sneha M. in the weekly leaderboard. Keep going!",    time:"5m ago",  cta:"View Rank", color: MED.green, unread:false },
+];
+
+function NotifScreen({ t, onClose }) {
+  const [notifs, setNotifs] = useState(NOTIFS);
+  const unreadCount = notifs.filter(n=>n.unread).length;
+
+  function markRead(id) { setNotifs(ns => ns.map(n => n.id===id ? {...n,unread:false} : n)); }
+  function dismiss(id)  { setNotifs(ns => ns.filter(n => n.id!==id)); }
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, paddingBottom:80 }}>
+      <div style={{ padding:"16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <div style={{ fontWeight:800, color:t.text, fontSize:18 }}>Notifications</div>
+          {unreadCount>0 && <div style={{ fontSize:12, color:MED.green, marginTop:2 }}>{unreadCount} unread</div>}
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={()=>setNotifs(ns=>ns.map(n=>({...n,unread:false})))} style={{ background:t.accentMuted, border:"none", borderRadius:8, padding:"5px 12px", color:t.accent, fontSize:11, fontWeight:700, cursor:"pointer" }}>Mark all read</button>
+          {onClose && <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:t.muted, fontSize:20 }}>✕</button>}
+        </div>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 16px" }}>
+        {notifs.length===0 && (
+          <div style={{ textAlign:"center", padding:40, color:t.muted }}>
+            <div style={{ fontSize:40, marginBottom:8 }}>🔔</div>
+            <div>All caught up!</div>
+          </div>
+        )}
+        {notifs.map(n => (
+          <div key={n.id} onClick={()=>markRead(n.id)} style={{ background:n.unread?n.color+"12":t.card, border:`1px solid ${n.unread?n.color+"44":t.border}`, borderRadius:14, padding:12, marginBottom:8, cursor:"pointer", position:"relative" }}>
+            {n.unread && <div style={{ position:"absolute", top:12, right:12, width:8, height:8, borderRadius:99, background:n.color }}/>}
+            <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:n.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{n.icon}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{n.title}</div>
+                <div style={{ fontSize:12, color:t.muted, marginTop:2, lineHeight:1.4 }}>{n.body}</div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:6 }}>
+                  <span style={{ fontSize:10, color:t.muted }}>{n.time}</span>
+                  <button onClick={e=>{e.stopPropagation();dismiss(n.id);}} style={{ background:"none", border:"none", cursor:"pointer", color:t.muted, fontSize:11 }}>dismiss</button>
+                </div>
+              </div>
+            </div>
+            <button style={{ marginTop:8, background:n.color, border:"none", borderRadius:8, padding:"5px 14px", color: n.color===MED.amber||n.color===MED.green?MED.bg0:"#fff", fontWeight:700, fontSize:11, cursor:"pointer" }}>{n.cta}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Onboarding Flow ──────────────────────────────────────────────────────────
+
+function OnboardingFlow({ t, onComplete }) {
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState({ name:"", year:"", exam:"", subjects:[] });
+
+  const steps = [
+    { id:"welcome" },
+    { id:"name" },
+    { id:"year" },
+    { id:"exam" },
+    { id:"subjects" },
+    { id:"gamify" },
+  ];
+
+  const years    = ["1st Year","2nd Year","3rd Year","Final Year","Intern","PG Aspirant"];
+  const exams    = [
+    { id:"neet",  label:"NEET PG",    icon:"🏥", sub:"Most popular PG entrance" },
+    { id:"aiims", label:"AIIMS PG",   icon:"🔬", sub:"Research-focused" },
+    { id:"usmle", label:"USMLE",      icon:"🌍", sub:"US licensing exam" },
+    { id:"plab",  label:"PLAB",       icon:"🇬🇧", sub:"UK licensing exam" },
+  ];
+  const allSubs  = SUBJECTS;
+  const progress = ((step) / (steps.length-1)) * 100;
+
+  function toggleSubject(id) {
+    setData(d => ({...d, subjects: d.subjects.includes(id) ? d.subjects.filter(s=>s!==id) : [...d.subjects, id]}));
+  }
+
+  // Welcome
+  if (step === 0) return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:t.bg, padding:"32px 24px 80px", gap:20 }}>
+      <div style={{ position:"relative" }}>
+        <div style={{ width:80, height:80, borderRadius:99, background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>🩺</div>
+        <div style={{ position:"absolute", bottom:-4, right:-4, width:28, height:28, borderRadius:99, background:MED.amber, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>⭐</div>
+      </div>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:28, fontWeight:900, color:t.text }}>Welcome to MedMCQ</div>
+        <div style={{ fontSize:14, color:t.muted, marginTop:6, lineHeight:1.6 }}>The science-backed MCQ platform<br/>built for MBBS students</div>
+      </div>
+      <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:8 }}>
+        {[
+          { icon:"🧠", text:"Spaced repetition so you never forget" },
+          { icon:"⚔️", text:"Challenge friends in real-time duels" },
+          { icon:"📈", text:"Track your exact rank among peers" },
+          { icon:"🎯", text:"AI explains every answer in depth" },
+        ].map(f => (
+          <div key={f.icon} style={{ background:t.card, borderRadius:12, padding:"10px 14px", display:"flex", gap:10, alignItems:"center", border:`1px solid ${t.border}` }}>
+            <span style={{ fontSize:20 }}>{f.icon}</span>
+            <span style={{ fontSize:13, color:t.text }}>{f.text}</span>
+          </div>
+        ))}
+      </div>
+      <button onClick={()=>setStep(1)} style={{ width:"100%", background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:"pointer" }}>
+        Get Started →
+      </button>
+    </div>
+  );
+
+  // Name
+  if (step === 1) return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, padding:"32px 24px 80px" }}>
+      <ProgressDots total={steps.length-1} current={step} t={t}/>
+      <div style={{ fontSize:24, fontWeight:900, color:t.text, marginBottom:6, marginTop:16 }}>What should we call you?</div>
+      <div style={{ fontSize:13, color:t.muted, marginBottom:24 }}>Your name shows on the leaderboard</div>
+      <input value={data.name} onChange={e=>setData(d=>({...d,name:e.target.value}))} placeholder="Dr. Your Name" style={{ background:t.card, border:`2px solid ${data.name?MED.green:t.border}`, borderRadius:14, padding:"14px 16px", color:t.text, fontSize:16, outline:"none", marginBottom:16, transition:"border .2s" }}/>
+      <button disabled={!data.name.trim()} onClick={()=>setStep(2)} style={{ background:data.name.trim()?MED.green:t.border, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:data.name.trim()?"pointer":"not-allowed" }}>Continue →</button>
+    </div>
+  );
+
+  // Year
+  if (step === 2) return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, padding:"32px 24px 80px" }}>
+      <ProgressDots total={steps.length-1} current={step} t={t}/>
+      <div style={{ fontSize:24, fontWeight:900, color:t.text, marginBottom:6, marginTop:16 }}>Which year are you in?</div>
+      <div style={{ fontSize:13, color:t.muted, marginBottom:24 }}>We'll personalise your question difficulty</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+        {years.map(y => (
+          <button key={y} onClick={()=>setData(d=>({...d,year:y}))} style={{ background:data.year===y?MED.green+"22":t.card, border:`2px solid ${data.year===y?MED.green:t.border}`, borderRadius:12, padding:"12px 16px", cursor:"pointer", textAlign:"left", color:data.year===y?MED.green:t.text, fontWeight:data.year===y?700:400, fontSize:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            {y}
+            {data.year===y && <span style={{ fontSize:16 }}>✓</span>}
+          </button>
+        ))}
+      </div>
+      <button disabled={!data.year} onClick={()=>setStep(3)} style={{ background:data.year?MED.green:t.border, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:data.year?"pointer":"not-allowed" }}>Continue →</button>
+    </div>
+  );
+
+  // Exam
+  if (step === 3) return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:t.bg, padding:"32px 24px 80px" }}>
+      <ProgressDots total={steps.length-1} current={step} t={t}/>
+      <div style={{ fontSize:24, fontWeight:900, color:t.text, marginBottom:6, marginTop:16 }}>Your target exam?</div>
+      <div style={{ fontSize:13, color:t.muted, marginBottom:24 }}>We'll weight questions by exam pattern</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+        {exams.map(e => (
+          <button key={e.id} onClick={()=>setData(d=>({...d,exam:e.id}))} style={{ background:data.exam===e.id?MED.green+"22":t.card, border:`2px solid ${data.exam===e.id?MED.green:t.border}`, borderRadius:14, padding:14, cursor:"pointer", textAlign:"left" }}>
+            <div style={{ fontSize:28, marginBottom:6 }}>{e.icon}</div>
+            <div style={{ fontWeight:800, color:data.exam===e.id?MED.green:t.text, fontSize:14 }}>{e.label}</div>
+            <div style={{ fontSize:11, color:t.muted, marginTop:2 }}>{e.sub}</div>
+          </button>
+        ))}
+      </div>
+      <button disabled={!data.exam} onClick={()=>setStep(4)} style={{ background:data.exam?MED.green:t.border, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:data.exam?"pointer":"not-allowed" }}>Continue →</button>
+    </div>
+  );
+
+  // Subjects
+  if (step === 4) return (
+    <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", background:t.bg, padding:"32px 24px 80px" }}>
+      <ProgressDots total={steps.length-1} current={step} t={t}/>
+      <div style={{ fontSize:24, fontWeight:900, color:t.text, marginBottom:6, marginTop:16 }}>Focus subjects?</div>
+      <div style={{ fontSize:13, color:t.muted, marginBottom:24 }}>Pick the ones you want to prioritise (select all that apply)</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+        {allSubs.map(s => {
+          const sel = data.subjects.includes(s.id);
+          return (
+            <button key={s.id} onClick={()=>toggleSubject(s.id)} style={{ background:sel?s.color+"22":t.card, border:`2px solid ${sel?s.color:t.border}`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:20 }}>{s.icon}</span>
+              <span style={{ flex:1, textAlign:"left", fontWeight:sel?700:400, color:sel?s.color:t.text, fontSize:14 }}>{s.name}</span>
+              {sel && <span style={{ color:s.color }}>✓</span>}
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={()=>setStep(5)} style={{ background:MED.green, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:"pointer" }}>
+        {data.subjects.length===0?"Skip →":"Continue →"}
+      </button>
+    </div>
+  );
+
+  // Gamification explainer
+  if (step === 5) return (
+    <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", background:t.bg, padding:"32px 24px 80px" }}>
+      <ProgressDots total={steps.length-1} current={step} t={t}/>
+      <div style={{ fontSize:24, fontWeight:900, color:t.text, marginBottom:6, marginTop:16 }}>How the rewards work</div>
+      <div style={{ fontSize:13, color:t.muted, marginBottom:20 }}>Understanding your numbers makes studying more motivating</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+        {[
+          { icon:"⚡", label:"XP (Experience Points)", color:MED.green,
+            explain:"You earn XP for every question you answer. Correct = 50 XP, Wrong = 10 XP (for trying). XP levels you up and raises your rank. Think of it as your study effort score." },
+          { icon:"🔥", label:"Streak", color:MED.amber,
+            explain:"Every day you study, your streak grows. A 7-day streak = bonus XP. A 30-day streak = badge. Miss a day and it resets — but you have 1 Streak Freeze to protect it." },
+          { icon:"🏆", label:"Rank", color:MED.cyan,
+            explain:"Your rank compares your XP to all students. #1 = highest XP overall. You can also rank by subject — be #1 in Pharmacology while still learning Anatomy." },
+          { icon:"🧠", label:"Spaced Repetition Score", color:MED.violet,
+            explain:"Based on how many cards you've reviewed on schedule. Higher = stronger long-term memory. Science shows this predicts exam performance better than raw practice." },
+          { icon:"⭐", label:"Daily Quests", color:MED.amber,
+            explain:"3 small goals each day. Complete all 3 = bonus XP multiplier unlocked for tomorrow. Quests reset every midnight." },
+        ].map(item => (
+          <GamifyCard key={item.label} item={item} t={t}/>
+        ))}
+      </div>
+      <button onClick={()=>onComplete(data)} style={{ width:"100%", background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, border:"none", borderRadius:14, padding:16, color:MED.bg0, fontWeight:800, fontSize:16, cursor:"pointer" }}>
+        Let's go, {data.name || "Doctor"}! 🩺
+      </button>
+    </div>
+  );
+
+  return null;
+}
+
+function ProgressDots({ total, current, t }) {
+  return (
+    <div style={{ display:"flex", gap:6 }}>
+      {[...Array(total)].map((_,i) => (
+        <div key={i} style={{ height:4, flex:1, borderRadius:99, background: i<current?MED.green:i===current?MED.green+"88":t.border, transition:"background .3s" }}/>
+      ))}
+    </div>
+  );
+}
+
+function GamifyCard({ item, t }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background:t.card, border:`1px solid ${open?item.color+"55":t.border}`, borderRadius:14, overflow:"hidden", transition:"border .2s" }}>
+      <button onClick={()=>setOpen(o=>!o)} style={{ width:"100%", background:"none", border:"none", padding:"12px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10, textAlign:"left" }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:item.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{item.icon}</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:700, color:t.text, fontSize:13 }}>{item.label}</div>
+        </div>
+        <div style={{ color:t.muted, fontSize:16, transition:"transform .2s", transform:open?"rotate(180deg)":"rotate(0deg)" }}>▾</div>
+      </button>
+      {open && (
+        <div style={{ padding:"0 14px 12px 64px", fontSize:12, color:t.muted, lineHeight:1.6, borderTop:`1px solid ${t.border}`, paddingTop:10 }}>
+          {item.explain}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AI Explanation Component ─────────────────────────────────────────────────
+
+function AIExplainPanel({ t, question, explanation, onClose }) {
+  const [messages, setMessages] = useState([
+    { role:"ai", text: explanation }
+  ]);
+  const [input, setInput]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    if (endRef.current) endRef.current.scrollTop = endRef.current.scrollHeight;
+  }, [messages]);
+
+  async function askAI() {
+    if (!input.trim()) return;
+    const q = input.trim();
+    setInput("");
+    setMessages(m => [...m, { role:"user", text:q }]);
+    setLoading(true);
+    try {
+      const prompt = `You are a medical MCQ tutor for MBBS students. The question was: "${question}". The student asks: "${q}". Give a concise, clinically useful answer in 2-3 sentences. Use simple language.`;
+      const reply = await window.claude.complete(prompt);
+      setMessages(m => [...m, { role:"ai", text:reply }]);
+    } catch(e) {
+      setMessages(m => [...m, { role:"ai", text:"Sorry, couldn't connect. Try again!" }]);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={onClose} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(4px)" }}/>
+      <div style={{ position:"relative", width:"100%", maxWidth:402, background:t.card, borderRadius:"24px 24px 0 0", border:`1px solid ${t.border}`, borderBottom:"none", zIndex:1, maxHeight:"75vh", display:"flex", flexDirection:"column" }}>
+        <div style={{ display:"flex", justifyContent:"center", padding:"10px 0 0" }}>
+          <div style={{ width:40, height:4, borderRadius:99, background:t.border }}/>
+        </div>
+        <div style={{ padding:"10px 16px", borderBottom:`1px solid ${t.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>🤖</div>
+            <div>
+              <div style={{ fontWeight:800, color:t.text, fontSize:14 }}>AI Tutor</div>
+              <div style={{ fontSize:10, color:MED.green }}>● Ask anything about this question</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:t.muted, fontSize:18 }}>✕</button>
+        </div>
+        {/* Messages */}
+        <div ref={endRef} style={{ flex:1, overflowY:"auto", padding:"12px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+          {messages.map((m,i) => (
+            <div key={i} style={{ display:"flex", flexDirection:m.role==="user"?"row-reverse":"row", gap:8, alignItems:"flex-end" }}>
+              {m.role==="ai" && <div style={{ width:26, height:26, borderRadius:8, background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, flexShrink:0 }}>🤖</div>}
+              <div style={{ maxWidth:"80%", background:m.role==="ai"?t.bg:MED.green, border:`1px solid ${m.role==="ai"?t.border:"transparent"}`, borderRadius:m.role==="ai"?"14px 14px 14px 4px":"14px 14px 4px 14px", padding:"10px 12px" }}>
+                <div style={{ fontSize:13, color:m.role==="ai"?t.text:MED.bg0, lineHeight:1.5 }}>{m.text}</div>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+              <div style={{ width:26, height:26, borderRadius:8, background:`linear-gradient(135deg,${MED.green},${MED.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12 }}>🤖</div>
+              <div style={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:"14px 14px 14px 4px", padding:"10px 14px", display:"flex", gap:4 }}>
+                {[0,1,2].map(i=><div key={i} style={{ width:6, height:6, borderRadius:99, background:MED.green, animation:`blink${i} .7s ease-in-out ${i*0.2}s infinite alternate` }}/>)}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Suggested questions */}
+        <div style={{ padding:"6px 16px", display:"flex", gap:6, overflowX:"auto" }}>
+          {["Why is this the answer?","What's the mechanism?","Give me a mnemonic","Compare with similar drugs"].map(s => (
+            <button key={s} onClick={()=>{ setInput(s); }} style={{ background:t.accentMuted, border:`1px solid ${t.accent}44`, borderRadius:99, padding:"4px 10px", cursor:"pointer", whiteSpace:"nowrap", fontSize:11, color:t.accent, fontWeight:600, flexShrink:0 }}>{s}</button>
+          ))}
+        </div>
+        {/* Input */}
+        <div style={{ padding:"8px 16px 20px", display:"flex", gap:8 }}>
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askAI()} placeholder="Ask about this question…" style={{ flex:1, background:t.bg, border:`1px solid ${t.border}`, borderRadius:12, padding:"10px 14px", color:t.text, fontSize:13, outline:"none" }}/>
+          <button onClick={askAI} disabled={loading||!input.trim()} style={{ background:input.trim()&&!loading?MED.green:t.border, border:"none", borderRadius:12, width:42, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .2s" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MED.bg0} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mock Exam Result ─────────────────────────────────────────────────────────
+
+const MOCK_RESULT = {
+  total:200, correct:148, wrong:34, skipped:18,
+  timeTaken:"2h 41m", percentile:87.4,
+  subjectBreak: [
+    { name:"Anatomy",      correct:18, total:25, color:MED.red    },
+    { name:"Physiology",   correct:22, total:25, color:MED.cyan   },
+    { name:"Biochemistry", correct:16, total:20, color:MED.green  },
+    { name:"Pathology",    correct:28, total:35, color:MED.violet },
+    { name:"Pharmacology", correct:24, total:30, color:MED.amber  },
+    { name:"Microbiology", correct:20, total:25, color:"#ff6eb4"  },
+    { name:"Community",    correct:20, total:25, color:MED.green  },
+    { name:"Forensic",     correct:0,  total:15, color:"#c084fc"  },
+  ],
+  rankChange: "+12",
+  cutoff: 130,
+};
+
+function MockResultScreen({ t, onBack }) {
+  const [tab, setTab] = useState("overview");
+  const r = MOCK_RESULT;
+  const score = Math.round((r.correct/r.total)*100);
+  const passed = r.correct >= r.cutoff;
+
+  const miniBar = (val, max, color) => (
+    <div style={{ height:5, borderRadius:99, background:t.border, overflow:"hidden", marginTop:4 }}>
+      <div style={{ width:`${(val/max)*100}%`, height:"100%", background:color, borderRadius:99 }}/>
+    </div>
+  );
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", paddingBottom:80, background:t.bg }}>
+      {/* Header */}
+      <div style={{ padding:"12px 16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:10 }}>
+        {onBack && <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:t.accent, fontSize:20 }}>←</button>}
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:800, color:t.text, fontSize:16 }}>Mock Exam Result</div>
+          <div style={{ fontSize:11, color:t.muted }}>200 Questions · NEET PG Pattern</div>
+        </div>
+        <Tag label={passed?"PASS":"FAIL"} color={passed?MED.green:MED.red}/>
+      </div>
+
+      {/* Score hero */}
+      <div style={{ background:`linear-gradient(135deg,${passed?MED.green:MED.red}22,${MED.cyan}22)`, padding:"24px 20px 16px", textAlign:"center", borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ fontSize:56, fontWeight:900, color:passed?MED.green:MED.red }}>{score}%</div>
+        <div style={{ fontSize:14, color:t.muted, marginTop:2 }}>{r.correct} / {r.total} correct</div>
+        {/* Percentile pill */}
+        <div className="glow-green" style={{ display:"inline-flex", alignItems:"center", gap:6, background:MED.green+"22", border:`1px solid ${MED.green}55`, borderRadius:99, padding:"6px 16px", marginTop:10 }}>
+          <span style={{ fontSize:18, fontWeight:900, color:MED.green }}>{r.percentile}th</span>
+          <span style={{ fontSize:12, color:t.muted }}>percentile</span>
+        </div>
+        <div style={{ fontSize:12, color:t.muted, marginTop:6 }}>You scored better than {r.percentile}% of students</div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:"flex", background:t.card, borderBottom:`1px solid ${t.border}` }}>
+        {["overview","subjects","analysis"].map(tb => (
+          <button key={tb} onClick={()=>setTab(tb)} style={{ flex:1, padding:"10px 0", border:"none", background:"none", cursor:"pointer", fontWeight:700, fontSize:12, color:tab===tb?MED.green:t.muted, borderBottom:`2px solid ${tab===tb?MED.green:"transparent"}`, textTransform:"capitalize", transition:"all .15s" }}>{tb}</button>
+        ))}
+      </div>
+
+      {tab === "overview" && (
+        <div style={{ padding:"12px 16px" }}>
+          {/* Stats grid */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+            {[
+              { label:"Correct",   val:r.correct,  color:MED.green,  icon:"✅" },
+              { label:"Wrong",     val:r.wrong,    color:MED.red,    icon:"❌" },
+              { label:"Skipped",   val:r.skipped,  color:MED.amber,  icon:"⏭️" },
+              { label:"Time",      val:r.timeTaken, color:MED.cyan,  icon:"⏱️" },
+              { label:"Rank Δ",    val:r.rankChange,color:MED.green, icon:"📈" },
+              { label:"Cutoff",    val:r.cutoff,   color:r.correct>=r.cutoff?MED.green:MED.red, icon:"🎯" },
+            ].map(s => (
+              <div key={s.label} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12 }}>
+                <div style={{ fontSize:11, color:t.muted }}>{s.icon} {s.label}</div>
+                <div style={{ fontSize:22, fontWeight:900, color:s.color, marginTop:2 }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+          {/* Marks distribution bar */}
+          <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}` }}>
+            <div style={{ fontWeight:700, color:t.text, fontSize:13, marginBottom:10 }}>Marks Distribution</div>
+            <div style={{ display:"flex", gap:3, height:12, borderRadius:99, overflow:"hidden" }}>
+              <div style={{ flex:r.correct, background:MED.green }}/>
+              <div style={{ flex:r.wrong, background:MED.red }}/>
+              <div style={{ flex:r.skipped, background:MED.amber }}/>
+            </div>
+            <div style={{ display:"flex", gap:12, marginTop:8 }}>
+              {[{label:"Correct",color:MED.green,val:r.correct},{label:"Wrong",color:MED.red,val:r.wrong},{label:"Skipped",color:MED.amber,val:r.skipped}].map(d=>(
+                <div key={d.label} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <div style={{ width:8, height:8, borderRadius:99, background:d.color }}/>
+                  <span style={{ fontSize:10, color:t.muted }}>{d.label}: {d.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "subjects" && (
+        <div style={{ padding:"12px 16px" }}>
+          {r.subjectBreak.map(s => {
+            const pct = Math.round((s.correct/s.total)*100);
+            return (
+              <div key={s.name} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:"10px 14px", marginBottom:8 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                  <span style={{ fontWeight:700, color:t.text, fontSize:13 }}>{s.name}</span>
+                  <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                    <span style={{ fontSize:11, color:t.muted }}>{s.correct}/{s.total}</span>
+                    <span style={{ fontWeight:800, color:pct>=70?MED.green:pct>=50?MED.amber:MED.red, fontSize:13 }}>{pct}%</span>
+                  </div>
+                </div>
+                {miniBar(s.correct, s.total, pct>=70?MED.green:pct>=50?MED.amber:MED.red)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === "analysis" && (
+        <div style={{ padding:"12px 16px" }}>
+          {[
+            { icon:"💪", label:"Strong areas", color:MED.green, items:["Physiology (88%)", "Community Med (80%)", "Pharmacology (80%)"] },
+            { icon:"⚠️", label:"Needs work", color:MED.amber, items:["Forensic Med (0%!)", "Anatomy (72%)"] },
+            { icon:"🧠", label:"SR recommendation", color:MED.violet, items:["Add Forensic Med to spaced repetition", "Review Anatomy nerve injuries", "Revise medico-legal cases"] },
+          ].map(s => (
+            <div key={s.label} style={{ background:t.card, border:`1px solid ${s.color}33`, borderRadius:14, padding:14, marginBottom:10 }}>
+              <div style={{ fontWeight:700, color:s.color, fontSize:13, marginBottom:8 }}>{s.icon} {s.label}</div>
+              {s.items.map((item,i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
+                  <div style={{ width:5, height:5, borderRadius:99, background:s.color, flexShrink:0 }}/>
+                  <span style={{ fontSize:12, color:t.text }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <button style={{ width:"100%", background:MED.green, border:"none", borderRadius:12, padding:14, color:MED.bg0, fontWeight:800, fontSize:14, cursor:"pointer", marginTop:4 }}>
+            🧠 Start Targeted Review
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Share Progress Sheet ────────────────────────────────────────────────────
+
+function ShareSheet({ t, onClose, rank, score, subject }) {
+  const [visibility, setVisibility] = useState("friends");
+  const [shared, setShared] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const isGoodRank = rank <= 10;
+
+  const shareText = visibility === "public"
+    ? `🏆 Ranked #${rank} on MedMCQ! ${score}% accuracy in ${subject}. Can you beat me? #MBBS #MedMCQ`
+    : `Hey! Check my MedMCQ stats — ranked #${rank}, ${score}% in ${subject} 💊`;
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={onClose} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(4px)" }}/>
+      <div style={{ position:"relative", width:"100%", maxWidth:402, background:t.card, borderRadius:"24px 24px 0 0", border:`1px solid ${t.border}`, borderBottom:"none", zIndex:1 }}>
+        <div style={{ display:"flex", justifyContent:"center", padding:"10px 0 0" }}>
+          <div style={{ width:40, height:4, borderRadius:99, background:t.border }}/>
+        </div>
+        <div style={{ padding:"14px 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`1px solid ${t.border}` }}>
+          <div style={{ fontWeight:800, color:t.text, fontSize:17 }}>Share Progress</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:t.muted, fontSize:20 }}>✕</button>
+        </div>
+        <div style={{ padding:"16px 20px 32px" }}>
+          {/* Preview card */}
+          <div style={{ background:MED.bg0, border:`1px solid ${MED.green}44`, borderRadius:16, padding:16, marginBottom:14, position:"relative", overflow:"hidden" }}>
+            <svg style={{ position:"absolute", bottom:8, right:8, opacity:.1 }} width="80" height="30" viewBox="0 0 80 30">
+              <polyline points="0,15 10,15 15,5 20,25 25,15 35,15 40,2 45,28 50,15 60,15 65,8 70,22 75,15 80,15" fill="none" stroke={MED.green} strokeWidth="2"/>
+            </svg>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+              <div style={{ width:40, height:40, borderRadius:99, background:MED.green+"22", border:`2px solid ${MED.green}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:MED.green, fontSize:16 }}>A</div>
+              <div>
+                <div style={{ fontWeight:700, color:t.text, fontSize:14 }}>Dr. Aryan</div>
+                <div style={{ fontSize:11, color:MED.green }}>MedMCQ · MBBS</div>
+              </div>
+              {visibility==="public" && isGoodRank && (
+                <div className="glow-green" style={{ marginLeft:"auto", background:MED.green+"22", border:`1px solid ${MED.green}`, borderRadius:10, padding:"3px 10px", fontSize:11, fontWeight:800, color:MED.green }}>🏆 Top {rank<=3?rank:"10"}</div>
+              )}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              {[
+                { val:`#${rank}`, label:"Global Rank", color:MED.green },
+                { val:`${score}%`, label:"Accuracy", color:MED.cyan },
+                { val:"29🔥", label:"Streak", color:MED.amber },
+              ].map(s => (
+                <div key={s.label} style={{ flex:1, background:s.color+"15", borderRadius:10, padding:"8px 6px", textAlign:"center" }}>
+                  <div style={{ fontSize:18, fontWeight:900, color:s.color }}>{s.val}</div>
+                  <div style={{ fontSize:9, color:t.muted }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop:8, fontSize:11, color:t.muted, textAlign:"center" }}>{subject}</div>
+          </div>
+
+          {/* Visibility toggle */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:1, marginBottom:8 }}>WHO CAN SEE THIS</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              {[
+                { id:"friends", icon:"👥", label:"Friends Only", sub:"Only people you follow", color:MED.cyan },
+                { id:"public",  icon:"🌐", label:"Go Public",    sub:"Visible to all students", color:MED.green, badge: isGoodRank?"Recommended ✨":null },
+              ].map(v => (
+                <button key={v.id} onClick={()=>setVisibility(v.id)} style={{ background:visibility===v.id?v.color+"18":t.bg, border:`2px solid ${visibility===v.id?v.color:t.border}`, borderRadius:12, padding:10, cursor:"pointer", textAlign:"left", position:"relative" }}>
+                  {v.badge && visibility==="friends" && (
+                    <div style={{ position:"absolute", top:-8, right:6, background:MED.amber, borderRadius:99, padding:"2px 8px", fontSize:9, fontWeight:800, color:"#000" }}>{v.badge}</div>
+                  )}
+                  <div style={{ fontSize:20, marginBottom:4 }}>{v.icon}</div>
+                  <div style={{ fontWeight:700, color:visibility===v.id?v.color:t.text, fontSize:12 }}>{v.label}</div>
+                  <div style={{ fontSize:10, color:t.muted, marginTop:2 }}>{v.sub}</div>
+                </button>
+              ))}
+            </div>
+            {visibility==="public" && isGoodRank && (
+              <div style={{ marginTop:8, background:MED.green+"15", border:`1px solid ${MED.green}44`, borderRadius:10, padding:"8px 12px", fontSize:11, color:MED.green }}>
+                ✨ You're in the top 10 — other students can discover and challenge you!
+              </div>
+            )}
+          </div>
+
+          {/* Share text preview */}
+          <div style={{ background:t.bg, borderRadius:10, padding:"10px 12px", border:`1px solid ${t.border}`, marginBottom:14, fontSize:12, color:t.muted, lineHeight:1.5, fontStyle:"italic" }}>
+            "{shareText}"
+          </div>
+
+          {/* Platform buttons */}
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {[
+              { icon:"💬", label:"WhatsApp",        color:"#25d366" },
+              { icon:"📸", label:"Instagram Story", color:"#e1306c" },
+              { icon:"𝕏",  label:"X / Twitter",    color:t.dark?"#e8f4f0":"#000" },
+              { icon:"📋", label:"Copy Link",       color:t.muted, action:"copy" },
+            ].map(p => (
+              <button key={p.label} onClick={()=>p.action==="copy"?setCopied(true):setShared(true)}
+                style={{ background:t.bg, border:`1px solid ${p.color}55`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:20, width:28, textAlign:"center" }}>{p.icon}</span>
+                <span style={{ fontSize:13, fontWeight:600, color:t.text, flex:1 }}>{p.label}</span>
+                {p.action==="copy" && copied && <span style={{ fontSize:11, color:MED.green }}>Copied!</span>}
+                {p.action!=="copy" && shared  && <span style={{ fontSize:11, color:MED.green }}>Shared!</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root App ────────────────────────────────────────────────────────────────
+
+function App() {
+  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = useState("home");
+  const [quizSubject, setQuizSubject] = useState(null);
+  const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem("mcq_onboarded"));
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [showMockResult, setShowMockResult] = useState(false);
+  const t = getTheme(tweaks.accentColor, tweaks.darkMode);
+  const unreadNotifs = NOTIFS.filter(n=>n.unread).length;
+
+  function completeOnboarding(data) {
+    localStorage.setItem("mcq_onboarded", "1");
+    if (data.name) setTweak("studentName", "Dr. " + data.name.replace(/^Dr\.\s*/i,""));
+    setOnboarded(true);
+  }
+
+  // Show onboarding if not done
+  if (!onboarded) {
+    return (
+      <window.IOSDevice dark={tweaks.darkMode}>
+        <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", background:t.bg, fontFamily:"'Segoe UI', system-ui, sans-serif", fontSize:tweaks.fontSize }}>
+          <OnboardingFlow t={t} onComplete={completeOnboarding}/>
+        </div>
+      </window.IOSDevice>
+    );
+  }
+
+  const screens = {
+    home:       <HomeScreen t={t} tweaks={tweaks} setScreen={setScreen} setQuizSubject={setQuizSubject}/>,
+    bank:       <BankScreen t={t}/>,
+    quiz:       <QuizScreen t={t} quizSubject={quizSubject}/>,
+    duel:       <DuelScreen t={t} myName={tweaks.studentName}/>,
+    rank:       <RankScreen t={t}/>,
+    stats:      <StatsScreen t={t} setScreen={setScreen}/>,
+    sr:         <SpacedRepScreen t={t}/>,
+    quests:     <QuestScreen t={t} studentName={tweaks.studentName}/>,
+    groups:     <GroupsScreen t={t} studentName={tweaks.studentName}/>,
+    notifs:     <NotifScreen t={t}/>,
+    mockresult: <MockResultScreen t={t} onBack={()=>setScreen("stats")}/>,
+  };
+
+  return (
+    <>
+      <window.IOSDevice dark={tweaks.darkMode}>
+        <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", background: t.bg, fontFamily:"'Segoe UI', system-ui, sans-serif", fontSize: tweaks.fontSize, position:"relative" }}>
+          {/* Notification bell overlay */}
+          {screen !== "notifs" && (
+            <button onClick={()=>setScreen("notifs")} style={{ position:"absolute", top:52, right:12, zIndex:100, background:"none", border:"none", cursor:"pointer", padding:4 }}>
+              <div style={{ position:"relative" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                {unreadNotifs > 0 && (
+                  <div style={{ position:"absolute", top:-4, right:-4, width:16, height:16, borderRadius:99, background:MED.red, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:"#fff" }}>{unreadNotifs}</div>
+                )}
+              </div>
+            </button>
+          )}
+          {screens[screen]}
+          <BottomNav screen={screen} setScreen={setScreen} t={t}/>
+        </div>
+      </window.IOSDevice>
+
+      <window.TweaksPanel>
+        <window.TweakSection label="Appearance">
+          <window.TweakColor label="Accent Color" value={tweaks.accentColor} onChange={v => setTweak('accentColor', v)}/>
+          <window.TweakToggle label="Dark Mode" value={tweaks.darkMode} onChange={v => setTweak('darkMode', v)}/>
+          <window.TweakSlider label="Font Size" value={tweaks.fontSize} min={12} max={18} step={1} onChange={v => setTweak('fontSize', v)}/>
+        </window.TweakSection>
+        <window.TweakSection label="Profile">
+          <window.TweakText label="Your Name" value={tweaks.studentName} onChange={v => setTweak('studentName', v)}/>
+          <window.TweakToggle label="Show Streak Badge" value={tweaks.showStreaks} onChange={v => setTweak('showStreaks', v)}/>
+        </window.TweakSection>
+      </window.TweaksPanel>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+function renderWhenReady() {
+  if (window.useTweaks && window.IOSDevice) {
+    root.render(<App/>);
+  } else {
+    requestAnimationFrame(renderWhenReady);
+  }
+}
+renderWhenReady();
+</script>
+<div id="root"></div>
+</body>
+</html>
