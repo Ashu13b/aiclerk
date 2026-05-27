@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Runtime dirs (personal docs, OCR outputs)
+inbox/
+output/
+pages/
+tmp_reingest/
+ocr_*.txt
+
+# Samples (personal documents)
+samples/
+
+# Logs
+*.log
