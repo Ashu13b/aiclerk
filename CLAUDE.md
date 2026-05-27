@@ -9,7 +9,6 @@ AiClerk is a pip-installable intelligent document clerk. The Python package is a
 ## Install
 
 ```bash
-cd /home/ubuntu/Expeei/aiclerk
 pip install -e . --break-system-packages
 ```
 
