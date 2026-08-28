@@ -1,0 +1,136 @@
+<!-- context-kit DOCS_MAP · v0.1.0 · generated 2026-08-27 12:28 UTC · sha 9f903c3 · host instance-20260819-0844 -->
+
+# DOCS_MAP
+
+Index of existing docs (headings only). Load the full file on demand. Oversized/transcript docs are demoted to a `cold` pointer — open them only when needed.
+
+## ./
+- `AGENT_CAPABILITIES.md`
+  - Agent Capability Negotiation
+    - Inspect
+- `AGENT_KNOWLEDGE.md`
+  - AGENT_KNOWLEDGE
+    - Intent
+    - Execution context
+    - State
+    - Decisions & rejected approaches
+    - Half-done / known-broken
+- `README.md`
+  - Docclerk — Intelligent Document Clerk
+    - Core Capabilities
+    - Current Status (v0.5)
+    - Usage
+    - Project Structure
+- `ROADMAP.md`
+  - ROADMAP
+    - Shipped
+    - Next
+    - Out of scope
+- `SPEC.md`
+  - Docclerk - Technical Specification
+    - Core Logic: Triple-Stream Intelligence
+      - 1. The Service Record (Career Timeline)
+      - 2. The Professional Output (Work Log)
+      - 3. The Knowledge Base (Insights & Precedents)
+    - Operations: Interactive Intelligence
+      - 1. Person Discovery Workflow
+      - 2. Multi-Person List Mapping
+      - 3. Weighted Priority Deduction
+    - Interface: The Multi-Modal Agent
+      - 1. Slash Command CLI (`docclerk /`)
+      - 2. DocClerk UI (Mobile/Web)
+    - Multi-Language Constraints: Hindi Matra Support
+    - Operational Constraints
+    - Extraction Schema
+- `TODO.md`
+  - Docclerk — TODO / Roadmap
+    - ✅ Phase 1: Foundation (Complete)
+    - ✅ Phase 2: Interactive Clerk CLI (Complete)
+    - ✅ Phase 3: Three Intelligence Loops (Complete)
+    - ✅ Phase 4: Reliable Sync
+    - 🔭 Phase 5: Agent Interface (UI & Slash CLI)
+
+## .agents/
+- `.agents/skills/adr-architect/SKILL.md`
+  - Architectural Decision Record (ADR) Architect
+    - ⚡ Core Rules & Directives
+    - 📋 ADR Document Template
+  - ADR-000X: [Title of Decision]
+    - Status
+    - Context & Problem Statement
+    - Decision Drivers
+    - Considered Options
+    - Trade-off Comparison Matrix
+    - Chosen Decision & Rationale
+    - Consequences & Mitigations
+- `.agents/skills/adversarial-tester/SKILL.md`
+  - Adversarial & Edge-Case Testing
+    - ⚡ Testing Dimensions & Attack Vectors
+    - 🔬 Test Generation Protocol
+- `.agents/skills/api-contract-guard/SKILL.md`
+  - API Contract & Schema Stability Guard
+    - ⚡ Core Rules & Directives
+    - 🔍 Audit Checklist
+    - 📋 Required Audit Output
+      - 📑 API Contract Stability Report
+- `.agents/skills/context-kit/SKILL.md`
+  - Context-Kit: Agent Guidance & Execution Protocol
+    - ⚡ Core Directives for Agents
+    - 🔄 5-Step Execution Lifecycle
+      - Step 1: Orient & Check State
+      - Step 2: Zero-Guess Symbol & File Lookup
+      - Step 3: Check Architectural Seams & Dependencies
+      - Step 4: Focused Task Compartments
+  - or declared compartment: sh .context-kit/ck compartment <name>
+      - Step 5: Pre-Flight Gate Verification & Map Refresh
+- `.agents/skills/dependency-vetter/SKILL.md`
+  - Dependency & Supply-Chain Vetter
+    - ⚡ Core Rules & Directives
+    - 🔍 Evaluation Protocol
+    - 📋 Required Output Report
+      - 📦 Dependency Vetting Report
+- `.agents/skills/migration-safety/SKILL.md`
+  - Database Migration & Schema Safety Guard
+    - ⚡ Non-Negotiable Safety Rules
+    - 🔍 Migration Risk Checklist
+    - 📋 Required Migration Audit Output
+      - 🗄️ Database Migration Safety Report
+- `.agents/skills/pre-production-audit/SKILL.md`
+  - Pre-Production Code Audit
+    - ⚡ Core Review Directives
+    - 🔍 The 8-Dimension Audit Checklist
+    - 📋 Required Audit Report Output
+      - 🛡️ Pre-Production Audit Report
+        - Executive Verdict: [PASS | CONDITIONAL PASS | BLOCK]
+        - Findings
+        - Verification Protocol
+- `.agents/skills/root-cause-debug/SKILL.md`
+  - Evidence-Based Root Cause Debugging
+    - ⚡ Core Rules & Directives
+    - 🔬 Investigation Workflow
+      - Step 1: Capture the Exact Failure Signature
+      - Step 2: Formulate & Test Hypotheses
+      - Step 3: Write a Reproducing Test
+      - Step 4: Fix and Verify
+    - 📋 Required Debug Report
+- `.agents/skills/seam-audit/SKILL.md`
+  - Architectural Seam & Boundary Audit
+    - ⚡ Core Rules & Directives
+    - 🔍 Investigation Workflow
+    - 📋 Required Audit Output
+
+## app/
+- `app/design/UI_TODO.md`
+  - medqa-app UI TODO
+    - Architecture (done)
+    - Navigation (done)
+    - SocialScreen hub (done)
+    - SettingsScreen (done)
+    - BankScreen (done)
+    - QuizScreen (done)
+    - HomeScreen (done)
+    - XP / Ranking (done)
+    - Platform architecture — planned (next)
+    - Medium effort — still pending
+    - Three-pillar philosophy — pending
+    - Backend needed

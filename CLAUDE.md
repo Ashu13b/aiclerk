@@ -133,3 +133,12 @@ For PDFs, only the page-1 header strip and footer are OCR'd for classification. 
 ## Current Phase
 
 v0.9 — Phase 5 (Agent Interface). Hindi NFC normalization and `fill`/`profile` commands are complete. Pending: slash-command REPL polish, semantic search (`aiclerk find`), mobile/web UI.
+
+<!-- >>> context-kit >>> -->
+This repo uses context-kit. Consult CODE_MAP / DEPS_MAP / ENV_MAP before Grep/Read.
+At the start of the session, run 'sh .context-kit/ck brief' to orient yourself on the repository status, active maps, and pending tasks.
+- Find where a symbol is defined: 'sh .context-kit/ck where <query>'
+- Inspect a specific file's structure: 'sh .context-kit/ck show <path>'
+- Print a compartment's symbol index: 'sh .context-kit/ck compartment <name>'
+@AGENTS.md
+<!-- <<< context-kit <<< -->
